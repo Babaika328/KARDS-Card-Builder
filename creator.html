@@ -494,7 +494,7 @@ function setupToggle(id, stateKey, cb) {
       btn.classList.add('active');
       state[stateKey] = btn.dataset.val;
       if (cb) cb();
-      draw();
+      drawWithArt();
     });
   });
 }
@@ -522,7 +522,7 @@ function bind(id, key, transform) {
   const el = document.getElementById(id);
   el.addEventListener('input', () => {
     state[key] = transform ? transform(el.value) : el.value;
-    draw();
+    drawWithArt();
   });
 }
 bind('nation', 'nation');
@@ -576,7 +576,7 @@ document.getElementById('artImageInput').addEventListener('change', (e) => {
       artScale = fit;
       artX = ART_X + (ART_W - img.naturalWidth * artScale) / 2;
       artY = ART_Y + (ART_H - img.naturalHeight * artScale) / 2;
-      draw();
+      drawWithArt();
     };
     img.src = ev.target.result;
   };
@@ -586,13 +586,11 @@ document.getElementById('artImageInput').addEventListener('change', (e) => {
 document.getElementById('clearArtBtn').addEventListener('click', () => {
   artImg = null;
   document.getElementById('artImageInput').value = '';
-  draw();
+  drawWithArt();
 });
 
-// Patch draw() to paint art before card template, clipped to art area only
-const _origDraw = draw;
-
-draw = async function() {
+// Wrapper that paints art before card template, clipped to art area only
+async function drawWithArt() {
   if (artImg) {
     ctx.clearRect(0, 0, 650, 650);
     ctx.save();
@@ -607,12 +605,12 @@ draw = async function() {
     // Draw card template on top without clearing (suppress clearRect)
     const _origClear = ctx.clearRect.bind(ctx);
     ctx.clearRect = () => {};
-    await _origDraw();
+    await draw();
     ctx.clearRect = _origClear;
   } else {
-    await _origDraw();
+    await draw();
   }
-};
+}
 
 // ── Canvas zoom state ────────────────────────────────────────────────
 let canvasScale = 1;
@@ -645,7 +643,7 @@ window.addEventListener('mousemove', (e) => {
   artY += (e.clientY - artDragLastY) * scaleRatio;
   artDragLastX = e.clientX;
   artDragLastY = e.clientY;
-  draw();
+  drawWithArt();
 });
 window.addEventListener('mouseup', () => { artDragging = false; });
 
@@ -689,7 +687,7 @@ canvas.addEventListener('wheel', (e) => {
     const cy = (e.clientY - rect.top)  * (650 / rect.height);
     artX = cx - (cx - artX) * (artScale / prevScale);
     artY = cy - (cy - artY) * (artScale / prevScale);
-    draw();
+    drawWithArt();
   } else {
     // No art loaded — wheel on canvas zooms the card
     const delta = e.deltaY < 0 ? 0.1 : -0.1;
@@ -705,7 +703,7 @@ previewEl.addEventListener('wheel', (e) => {
   setCanvasZoom(canvasScale + delta);
 }, { passive: false });
 
-draw();
+drawWithArt();
 </script>
 </body>
 </html>
