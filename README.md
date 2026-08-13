@@ -12,9 +12,9 @@ A fan-made collection of card templates for **[KARDS](https://www.kards.com/)**,
 
 Alternatively, download and open `index.html` locally. No installation or setup required.
 
-[![Buy Me a Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=verykraken&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff)](https://buymeacoffee.com/verykraken)
-
 ---
+
+[![Buy Me a Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=verykraken&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff)](https://buymeacoffee.com/verykraken)
 
 ## Preview
 
