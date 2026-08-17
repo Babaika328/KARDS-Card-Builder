@@ -32,8 +32,10 @@ A fully **self-contained** card creator that runs directly in any browser. All c
 - Order & Countermeasure cards
 - Custom card name, stats, keywords, and card text (with **bold** markdown support)
 - Rarity icons (Standard, Limited, Special, Elite)
-- Art image upload — drag to reposition, scroll to scale, clipped to the art area
-- Scroll to zoom the full card preview (up to 2×)
+- Art image upload — drag to reposition, scroll/pinch to scale, lock/unlock, clipped to the art area
+- Scroll or pinch to zoom the full card preview (up to 5×)
+- Undo / Redo (buttons + Ctrl+Z / Ctrl+Y)
+- Dark / Light theme
 - Export as PNG
 
 ---
