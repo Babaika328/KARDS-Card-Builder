@@ -51,6 +51,7 @@ KARDS_card_builder/
 │   ├── Franklin Gothic Book Regular.ttf
 │   ├── Franklin Gothic Condensed.ttf
 │   ├── Franklin Gothic Medium Cond Regular.ttf
+│   ├── ITC Franklin Gothic Std Demi Condensed.otf
 │   ├── Roboto Black.ttf
 │   └── Roboto-BoldCondensed.ttf
 │
