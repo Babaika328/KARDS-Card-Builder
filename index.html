@@ -25,6 +25,11 @@
   #themeToggle { padding: 4px 10px; border: 1px solid var(--border); background: var(--toggle-bg); color: var(--label); border-radius: 3px; cursor: pointer; font-size: 11px; font-family: 'FranklinMed', sans-serif; transition: all 0.15s; }
   #themeToggle:hover { border-color: var(--input-focus); color: var(--text); }
 
+  .header-actions { display: flex; align-items: center; gap: 14px; }
+  #githubLink { display: flex; align-items: center; color: var(--label); transition: color 0.15s; }
+  #githubLink:hover { color: var(--text); }
+  #githubLink svg { display: block; }
+
   .main { display: flex; flex: 1; min-height: 0; }
   .preview { flex: 1; display: flex; min-height: 0; padding: 40px; background: var(--preview-bg); overflow: auto; position: relative; cursor: grab; user-select: none; }
   .preview.dragging { cursor: grabbing; }
@@ -136,7 +141,14 @@
 
 <header>
   <h1>KARDS Card Builder (by VeryKraken)</h1>
-  <button id="themeToggle">Dark</button>
+  <div class="header-actions">
+    <a id="githubLink" href="https://github.com/Babaika328/KARDS-Card-Builder" target="_blank" rel="noopener noreferrer" title="View source on GitHub" aria-label="View source on GitHub">
+      <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+      </svg>
+    </a>
+    <button id="themeToggle">Dark</button>
+  </div>
 </header>
 
 <div class="main">
@@ -875,6 +887,7 @@ document.getElementById('artImageInput').addEventListener('change', (e) => {
       artX = ART_X + (ART_W - img.naturalWidth * artScale) / 2;
       artY = ART_Y + (ART_H - img.naturalHeight * artScale) / 2;
       drawWithArt();
+      checkpoint(); // record the load so undo can step back to "no art"
     };
     img.src = ev.target.result;
   };
@@ -885,6 +898,7 @@ document.getElementById('clearArtBtn').addEventListener('click', () => {
   artImg = null;
   document.getElementById('artImageInput').value = '';
   drawWithArt();
+  checkpoint(); // record the removal so Ctrl+Z can bring the art back
 });
 
 const artLockBtn = document.getElementById('artLockToggle');
@@ -1303,29 +1317,70 @@ function syncUIFromState() {
 }
 
 // ── Undo / redo ─────────────────────────────────────────────────────────
-//   Snapshots include the art's position/scale (artX/Y/Scale) but NOT the
-//   loaded image itself — re-encoding a multi-MB image into every history
-//   step would balloon memory fast. Undoing past a "load art" / "remove
-//   art" step won't bring the image file back, only its last known
-//   transform; this is a deliberate, documented trade-off.
+//   Snapshots DO include the loaded art (see artSrc in snapshotState()
+//   below), so a "load art" / "remove art" step is fully undoable — the
+//   trade-off is memory: up to 50 history steps can each duplicate the
+//   art's base64 string. See snapshotState() for the reasoning on why
+//   that's accepted rather than avoided.
 let historyPast = [];
 let historyFuture = [];
 let lastSnapshot = null;
 let checkpointTimer = null;
 
 function snapshotState() {
-  return JSON.stringify({ ...state, artX, artY, artScale });
+  // artSrc is included (not just artX/Y/Scale) so undo/redo can restore
+  // the loaded/removed image itself, not just its position. Each snapshot
+  // duplicates the art's base64 data URL string, which does cost memory
+  // across up to 50 history steps for a large image — but it's the same
+  // trade-off persistDraft() already accepts for the single autosave
+  // draft, and in practice a KARDS card art image is a few hundred KB to
+  // a couple MB, so 50 steps stays well within what a browser tab handles.
+  return JSON.stringify({ ...state, artX, artY, artScale, artSrc: artImg ? artImg.src : null });
 }
 
 function applySnapshotJSON(json) {
   const snap = JSON.parse(json);
-  const { artX: sx, artY: sy, artScale: sScale, ...rest } = snap;
+  const { artX: sx, artY: sy, artScale: sScale, artSrc, ...rest } = snap;
   Object.assign(state, rest);
   if (typeof sx === 'number') artX = sx;
   if (typeof sy === 'number') artY = sy;
   if (typeof sScale === 'number') artScale = sScale;
-  syncUIFromState();
-  drawWithArt();
+
+  const currentSrc = artImg ? artImg.src : null;
+  // artSrc unchanged (same string, or both null/undefined for "no art"):
+  // skip the async image reload and just repaint with the new position/
+  // scale/text state — this is the common case (most undo steps are
+  // text/number edits, not art load/remove).
+  if (artSrc === currentSrc || (!artSrc && !currentSrc)) {
+    syncUIFromState();
+    drawWithArt();
+    return;
+  }
+
+  if (!artSrc) {
+    // This history step had no art loaded (either before the first
+    // upload, or right after "Remove Art") — clear it out.
+    artImg = null;
+    document.getElementById('artImageInput').value = '';
+    syncUIFromState();
+    drawWithArt();
+    persistDraft();
+    return;
+  }
+
+  // Different art than what's currently loaded — decode it back into an
+  // Image before repainting. This is async, so the canvas briefly shows
+  // the previous art (or blank) until it resolves; unavoidable since
+  // Image decoding always yields, same as the initial upload/autosave-
+  // restore paths already do.
+  const img = new Image();
+  img.onload = () => {
+    artImg = img;
+    syncUIFromState();
+    drawWithArt();
+    persistDraft();
+  };
+  img.src = artSrc;
 }
 
 function updateUndoRedoButtons() {
