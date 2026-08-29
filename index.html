@@ -52,6 +52,12 @@
   input:focus, select:focus, textarea:focus { border-color: var(--input-focus); }
   textarea { resize: vertical; min-height: 56px; }
 
+  input[type=range] {
+    width: 100%; accent-color: var(--input-focus); cursor: pointer;
+    height: 22px; padding: 0; background: transparent;
+  }
+  label span .offset-val { color: var(--text); font-weight: 600; letter-spacing: 0; text-transform: none; }
+
   .row { display: flex; gap: 8px; }
   .row label { flex: 1; }
 
@@ -113,6 +119,7 @@
     .toggle-btn { padding: 9px 13px; font-size: 13px; }
     button.primary { padding: 13px; font-size: 14px; }
     header h1 { font-size: 10px; }
+    input[type=range] { height: 30px; }
   }
 
   /* Phones in LANDSCAPE: shrink sidebar; card scales to fit height. */
@@ -134,6 +141,7 @@
     }
     .toggle-btn { padding: 7px 10px; font-size: 12px; }
     button.primary { padding: 10px; font-size: 13px; }
+    input[type=range] { height: 28px; }
   }
 </style>
 </head>
@@ -206,6 +214,10 @@
         <label style="flex:1;"><span>Font Size</span><input type="number" id="orderNameFontSize" value="40" min="10" max="60"></label>
         <button type="button" class="primary" id="orderNameFontSizeReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
       </div>
+      <div id="orderNamePositionLabel" class="row" style="margin-top:4px; align-items:flex-end; display:none;">
+        <label style="flex:1;"><span>Vertical Position <span class="offset-val" id="nameOffsetYVal">0</span></span><input type="range" id="nameOffsetY" min="-50" max="50" step="1" value="0"></label>
+        <button type="button" class="primary" id="nameOffsetYReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
+      </div>
     </div>
 
     <div class="section">
@@ -244,6 +256,10 @@
         <label style="flex:1;"><span>Keywords Font Size</span><input type="number" id="keywordsFontSize" value="26" min="10" max="50"></label>
         <button type="button" class="primary" id="keywordsFontSizeReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
       </div>
+      <div class="row" style="align-items:flex-end; margin-top:4px;">
+        <label style="flex:1;"><span>Vertical Position <span class="offset-val" id="keywordsOffsetYVal">0</span></span><input type="range" id="keywordsOffsetY" min="-50" max="50" step="1" value="0"></label>
+        <button type="button" class="primary" id="keywordsOffsetYReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
+      </div>
     </div>
 
     <div class="section">
@@ -253,6 +269,10 @@
       <div class="row" style="align-items:flex-end; margin-top:4px;">
         <label style="flex:1;"><span>Text Font Size</span><input type="number" id="textFontSize" value="26" min="10" max="50"></label>
         <button type="button" class="primary" id="textFontSizeReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
+      </div>
+      <div class="row" style="align-items:flex-end; margin-top:4px;">
+        <label style="flex:1;"><span>Vertical Position <span class="offset-val" id="textOffsetYVal">0</span></span><input type="range" id="textOffsetY" min="-50" max="50" step="1" value="0"></label>
+        <button type="button" class="primary" id="textOffsetYReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
       </div>
     </div>
 
@@ -368,8 +388,11 @@ const DEFAULT_STATE = {
   keywordsOrder: '',
   keywordsCounter: '',
   keywordsFontSize: 26,
+  keywordsOffsetY: 0,
   text: '',
   textFontSize: 26,
+  textOffsetY: 0,
+  nameOffsetY: 0,
   rarity: 'standard',
   rarityVariant: 1,
   artLocked: false,
@@ -585,13 +608,13 @@ async function draw(skipClear = false) {
     // --- Keywords and body text ---
     ctx.textBaseline = 'top';
     const kws = state.keywords.trim();
-    let textY = 504;
+    let textY = 504 + state.textOffsetY;
     if (kws) {
       ctx.font = `bold ${state.keywordsFontSize}px FranklinMed`;
       ctx.fillStyle = '#4d4d48';
       ctx.textAlign = 'center';
-      ctx.fillText(kws, 325, 504);
-      textY = 534;
+      ctx.fillText(kws, 325, 504 + state.keywordsOffsetY);
+      textY = 534 + state.textOffsetY;
     }
     if (state.text.trim()) {
       drawRichText(ctx, state.text, 325, textY, state.textFontSize, '#4d4d48', 640, 1.15);
@@ -637,18 +660,18 @@ async function draw(skipClear = false) {
     ctx.fillStyle = '#4c4c46';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText(nonUnitName, 325, 466);
+    ctx.fillText(nonUnitName, 325, 466 + state.nameOffsetY);
 
     // --- Keywords for order/countermeasure ---
     ctx.textBaseline = 'top';
     const kwsNonUnit = isOrder ? state.keywordsOrder.trim() : state.keywordsCounter.trim();
-    let textYNonUnit = 512;
+    let textYNonUnit = 512 + state.textOffsetY;
     if (kwsNonUnit) {
       ctx.font = `bold ${state.keywordsFontSize}px FranklinMed`;
       ctx.fillStyle = '#575750';
       ctx.textAlign = 'center';
-      ctx.fillText(kwsNonUnit, 325, 507);
-      textYNonUnit = 537;
+      ctx.fillText(kwsNonUnit, 325, 507 + state.keywordsOffsetY);
+      textYNonUnit = 537 + state.textOffsetY;
     }
     // Card text
     if (state.text.trim()) {
@@ -725,6 +748,63 @@ function drawRichText(ctx, text, cx, startY, size, color, maxWidth, lineSpacing)
   }
 }
 
+// Height of the rich-text block (same wrapping rules as drawRichText).
+// Used so the textOffsetY slider bottom limit accounts for all lines,
+// not just the top of the first line.
+function measureRichTextHeight(ctx, text, size, maxWidth, lineSpacing) {
+  if (!text || !String(text).trim()) return 0;
+  const rawLines = String(text).split('\n');
+  const lineH = size * lineSpacing - 1;
+  let h = 0;
+  let drewAny = false;
+
+  for (const rawLine of rawLines) {
+    if (rawLine.trim() === '') {
+      h += lineH * 0.6;
+      continue;
+    }
+
+    const segs = parseSegments(rawLine);
+    const tokens = [];
+    for (const seg of segs) {
+      const parts = seg.text.split(/( )/);
+      for (const p of parts) {
+        if (p !== '') tokens.push({ text: p, bold: seg.bold });
+      }
+    }
+
+    const wrappedLines = [];
+    let cur = [], curW = 0;
+    for (const t of tokens) {
+      ctx.font = t.bold ? `1000 ${size}px FranklinMed` : `${size}px FranklinMed`;
+      const tw = ctx.measureText(t.text).width;
+      if (curW + tw > maxWidth && cur.length > 0 && t.text.trim() !== '') {
+        wrappedLines.push(cur);
+        cur = [t];
+        curW = tw;
+      } else {
+        cur.push(t);
+        curW += tw;
+      }
+    }
+    if (cur.length) wrappedLines.push(cur);
+
+    for (let i = 0; i < wrappedLines.length; i++) {
+      // Last painted line occupies ~font size; intermediate lines use lineH.
+      // Approximate: advance by lineH for every line (matches drawRichText spacing).
+      h += lineH;
+      drewAny = true;
+    }
+  }
+
+  // Visual bottom is closer to (lines-1)*lineH + size than full lineH after last line.
+  // Subtract the extra trailing gap and use font size for the last glyph box.
+  if (drewAny) {
+    h = h - lineH + size;
+  }
+  return Math.max(0, h);
+}
+
 function setupToggle(id, stateKey, cb) {
   document.getElementById(id).querySelectorAll('.toggle-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -750,6 +830,9 @@ function updateCardTypeVisibility() {
   document.getElementById('keywordsCounterSection').style.display = isCounter ? '' : 'none';
   document.getElementById('nameFontSizeLabel').style.display = isUnit ? '' : 'none';
   document.getElementById('orderNameFontSizeLabel').style.display = isUnit ? 'none' : '';
+  document.getElementById('orderNamePositionLabel').style.display = isUnit ? 'none' : '';
+  // Card type changes base Y and zone bounds — recalculate slider limits.
+  if (typeof updateOffsetSliderLimits === 'function') updateOffsetSliderLimits();
 }
 function updateRarityVariantVisibility() {
   const v = state.rarity;
@@ -775,19 +858,33 @@ bind('kreditCost', 'kreditCost', v => Math.max(0, Math.min(99, parseInt(v)||0)))
 bind('opCost', 'opCost', v => Math.max(0, Math.min(9, parseInt(v)||0)));
 bind('attack', 'attack', v => Math.max(0, Math.min(99, parseInt(v)||0)));
 bind('defence', 'defence', v => Math.max(0, Math.min(99, parseInt(v)||0)));
-bind('keywords', 'keywords');
-bind('keywordsOrder', 'keywordsOrder');
-bind('keywordsCounter', 'keywordsCounter');
-bind('cardText', 'text');
+// keywords binds are set up after updateOffsetSliderLimits is defined
+// Card text changes height → refresh textOffsetY limits.
+document.getElementById('cardText').addEventListener('input', () => {
+  state.text = document.getElementById('cardText').value;
+  updateOffsetSliderLimits();
+  drawWithArt();
+  scheduleCheckpoint();
+});
 bind('nameFontSize', 'nameFontSize', v => Math.max(10, Math.min(60, parseInt(v)||47)));
 bind('orderNameFontSize', 'orderNameFontSize', v => Math.max(10, Math.min(60, parseInt(v)||40)));
 bind('keywordsFontSize', 'keywordsFontSize', v => Math.max(10, Math.min(50, parseInt(v)||26)));
 bind('textFontSize', 'textFontSize', v => Math.max(10, Math.min(50, parseInt(v)||26)));
+document.getElementById('textFontSize').addEventListener('input', () => {
+  if (typeof updateOffsetSliderLimits === 'function') updateOffsetSliderLimits();
+});
+document.getElementById('keywordsFontSize').addEventListener('input', () => {
+  if (typeof updateOffsetSliderLimits === 'function') updateOffsetSliderLimits();
+});
+document.getElementById('orderNameFontSize').addEventListener('input', () => {
+  if (typeof updateOffsetSliderLimits === 'function') updateOffsetSliderLimits();
+});
 
 function wireFontReset(btnId, inputId, key, defaultVal) {
   document.getElementById(btnId).addEventListener('click', () => {
     state[key] = defaultVal;
     document.getElementById(inputId).value = defaultVal;
+    if (typeof updateOffsetSliderLimits === 'function') updateOffsetSliderLimits();
     drawWithArt();
     checkpoint();
   });
@@ -796,6 +893,133 @@ wireFontReset('nameFontSizeReset', 'nameFontSize', 'nameFontSize', 47);
 wireFontReset('orderNameFontSizeReset', 'orderNameFontSize', 'orderNameFontSize', 40);
 wireFontReset('keywordsFontSizeReset', 'keywordsFontSize', 'keywordsFontSize', 26);
 wireFontReset('textFontSizeReset', 'textFontSize', 'textFontSize', 26);
+
+// ── Vertical position sliders (name / keywords / text) ─────────────────
+// Shared absolute bounds on the card, separate for Unit vs Order/CM.
+// Each slider's min/max is derived from its own base Y so the extremes
+// always hit the same top/bottom lines for that card type.
+// Tweak TEXT_ZONE.unit / TEXT_ZONE.order to match each template's area.
+const TEXT_ZONE = {
+  unit:  { top: 492, bottom: 622 }, // Unit parchment / text area
+  order: { top: 450, bottom: 622 }  // Order & Countermeasure (same layout)
+};
+
+function getActiveTextZone() {
+  return state.cardType === 'unit' ? TEXT_ZONE.unit : TEXT_ZONE.order;
+}
+
+// Base Y positions used in draw() — must stay in sync with the paint code.
+function getBaseYs() {
+  const isUnit = state.cardType === 'unit';
+  if (isUnit) {
+    const hasKws = !!state.keywords.trim();
+    return {
+      name: null, // Unit name lives in the header and has no Y slider
+      keywords: 504,
+      text: hasKws ? 534 : 504
+    };
+  }
+  const hasKws = state.cardType === 'order'
+    ? !!state.keywordsOrder.trim()
+    : !!state.keywordsCounter.trim();
+  return {
+    name: 466,
+    keywords: 507,
+    text: hasKws ? 537 : 512
+  };
+}
+
+// Recompute each range input's min/max so every element shares the zone.
+function updateOffsetSliderLimits() {
+  const zone = getActiveTextZone();
+  const bases = getBaseYs();
+  const isUnit = state.cardType === 'unit';
+
+  // Card-text block height (multi-line / wrapping) so the bottom limit is
+  // based on the last line, not only the first-line top.
+  const textLineSpacing = isUnit ? 1.15 : 1.20;
+  const textSize = state.textFontSize || 26;
+  const textH = measureRichTextHeight(ctx, state.text, textSize, 640, textLineSpacing);
+
+  // Keywords are a single centered line — use font size as height.
+  const kwsH = state.keywordsFontSize || 26;
+  // Name (Order/CM only) is a single line.
+  const nameH = state.orderNameFontSize || 40;
+
+  const apply = (inputId, displayId, baseY, stateKey, blockH) => {
+    const el = document.getElementById(inputId);
+    if (!el || baseY == null) return;
+
+    const min = Math.round(zone.top - baseY);
+    // Bottom of the element = baseY + offset + blockH must stay <= zone.bottom
+    const max = Math.round(zone.bottom - baseY - (blockH || 0));
+    // Ensure max is not below min (very tall text) — keep a zero-width range.
+    const maxClamped = Math.max(min, max);
+    el.min = min;
+    el.max = maxClamped;
+
+    let v = state[stateKey] || 0;
+    v = Math.max(min, Math.min(maxClamped, v));
+    state[stateKey] = v;
+    el.value = v;
+
+    const display = document.getElementById(displayId);
+    if (display) display.textContent = (v > 0 ? '+' : '') + v;
+  };
+
+  apply('nameOffsetY', 'nameOffsetYVal', bases.name, 'nameOffsetY', nameH);
+  apply('keywordsOffsetY', 'keywordsOffsetYVal', bases.keywords, 'keywordsOffsetY', kwsH);
+  apply('textOffsetY', 'textOffsetYVal', bases.text, 'textOffsetY', textH);
+}
+
+function bindSlider(id, key, displayId) {
+  const el = document.getElementById(id);
+  const display = displayId ? document.getElementById(displayId) : null;
+  el.addEventListener('input', () => {
+    const min = parseInt(el.min, 10);
+    const max = parseInt(el.max, 10);
+    const v = Math.max(min, Math.min(max, parseInt(el.value) || 0));
+    state[key] = v;
+    if (display) display.textContent = (v > 0 ? '+' : '') + v;
+    drawWithArt();
+    scheduleCheckpoint();
+  });
+}
+bindSlider('nameOffsetY', 'nameOffsetY', 'nameOffsetYVal');
+bindSlider('keywordsOffsetY', 'keywordsOffsetY', 'keywordsOffsetYVal');
+bindSlider('textOffsetY', 'textOffsetY', 'textOffsetYVal');
+
+function wireOffsetReset(btnId, inputId, key, displayId) {
+  document.getElementById(btnId).addEventListener('click', () => {
+    state[key] = 0;
+    document.getElementById(inputId).value = 0;
+    const display = document.getElementById(displayId);
+    if (display) display.textContent = '0';
+    updateOffsetSliderLimits();
+    drawWithArt();
+    checkpoint();
+  });
+}
+wireOffsetReset('nameOffsetYReset', 'nameOffsetY', 'nameOffsetY', 'nameOffsetYVal');
+wireOffsetReset('keywordsOffsetYReset', 'keywordsOffsetY', 'keywordsOffsetY', 'keywordsOffsetYVal');
+wireOffsetReset('textOffsetYReset', 'textOffsetY', 'textOffsetY', 'textOffsetYVal');
+
+// Keywords presence shifts the text base Y — keep slider limits in sync.
+function bindKeywordsWithLimits(id, key) {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    state[key] = el.value;
+    updateOffsetSliderLimits();
+    drawWithArt();
+    scheduleCheckpoint();
+  });
+}
+bindKeywordsWithLimits('keywords', 'keywords');
+bindKeywordsWithLimits('keywordsOrder', 'keywordsOrder');
+bindKeywordsWithLimits('keywordsCounter', 'keywordsCounter');
+
+// Initial limits (re-run on card-type change / keywords change / restore).
+updateOffsetSliderLimits();
 
 // Finds the bounding box of non-transparent pixels on the canvas,
 // so exported PNGs are cropped to the actual card art instead of
@@ -1311,6 +1535,9 @@ function syncUIFromState() {
   document.getElementById('orderNameFontSize').value = state.orderNameFontSize;
   document.getElementById('keywordsFontSize').value = state.keywordsFontSize;
   document.getElementById('textFontSize').value = state.textFontSize;
+
+  // Apply shared zone limits for the current card type (also clamps values).
+  updateOffsetSliderLimits();
 
   artLockBtn.textContent = state.artLocked ? 'Unlock Art' : 'Lock Art';
   artLockBtn.classList.toggle('active', state.artLocked);
