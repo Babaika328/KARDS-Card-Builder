@@ -15,8 +15,8 @@
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
-  body.light { --bg: #eeebe6; --panel: #fff; --border: #e0dbd4; --text: #333; --label: #888; --sublabel: #bbb; --input-bg: #fafafa; --input-border: #e0e0e0; --input-focus: #bbb; --toggle-bg: #fafafa; --toggle-active-bg: #eeebe6; --toggle-active-border: #bbb; --toggle-color: #999; --toggle-active-color: #444; --preview-bg: #e4e0da; --shadow: rgba(0,0,0,0.15); }
-  body.dark  { --bg: #1c1c1c; --panel: #242424; --border: #2e2e2e; --text: #ccc; --label: #777; --sublabel: #555; --input-bg: #2a2a2a; --input-border: #383838; --input-focus: #555; --toggle-bg: #2a2a2a; --toggle-active-bg: #333; --toggle-active-border: #666; --toggle-color: #666; --toggle-active-color: #ccc; --preview-bg: #161616; --shadow: rgba(0,0,0,0.5); }
+  body.light { --bg: #eeebe6; --panel: #fff; --border: #e0dbd4; --text: #333; --label: #888; --sublabel: #6b6459; --hint: #7a7368; --accent-hint: #9c6a26; --input-bg: #fafafa; --input-border: #e0e0e0; --input-focus: #bbb; --toggle-bg: #fafafa; --toggle-active-bg: #eeebe6; --toggle-active-border: #bbb; --toggle-color: #999; --toggle-active-color: #444; --preview-bg: #e4e0da; --shadow: rgba(0,0,0,0.15); }
+  body.dark  { --bg: #1c1c1c; --panel: #242424; --border: #2e2e2e; --text: #ccc; --label: #999; --sublabel: #8c8377; --hint: #a39a8c; --accent-hint: #e3a752; --input-bg: #2a2a2a; --input-border: #383838; --input-focus: #555; --toggle-bg: #2a2a2a; --toggle-active-bg: #333; --toggle-active-border: #666; --toggle-color: #666; --toggle-active-color: #ccc; --preview-bg: #161616; --shadow: rgba(0,0,0,0.5); }
 
   body { background: var(--bg); color: var(--text); font-family: 'FranklinMed', sans-serif; height: 100vh; display: flex; flex-direction: column; transition: background 0.2s, color 0.2s; overflow: hidden; }
 
@@ -26,22 +26,53 @@
   #themeToggle:hover { border-color: var(--input-focus); color: var(--text); }
 
   .header-actions { display: flex; align-items: center; gap: 14px; }
-  #githubLink { display: flex; align-items: center; color: var(--label); transition: color 0.15s; }
-  #githubLink:hover { color: var(--text); }
-  #githubLink svg { display: block; }
+  #githubLink, #coffeeLink { display: flex; align-items: center; color: var(--label); transition: color 0.15s; }
+  #githubLink:hover, #coffeeLink:hover { color: var(--text); }
+  #githubLink svg, #coffeeLink svg { display: block; }
 
   .main { display: flex; flex: 1; min-height: 0; }
   .preview { flex: 1; display: flex; min-height: 0; padding: 40px; background: var(--preview-bg); overflow: auto; position: relative; cursor: grab; user-select: none; }
   .preview.dragging { cursor: grabbing; }
   canvas#cardCanvas { display: block; margin: auto; border-radius: 10px; box-shadow: 0 8px 36px var(--shadow); max-width: 100%; aspect-ratio: 1 / 1; }
 
-  .controls { width: 296px; min-height: 0; background: var(--panel); border-left: 1px solid var(--border); overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 13px; }
+  .controls { width: 296px; min-height: 0; background: var(--panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+  .controls-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 13px; }
+  .controls-footer { flex: 0 0 auto; padding: 10px 16px 14px; border-top: 1px solid var(--border); background: var(--panel); display: flex; flex-direction: column; gap: 8px; }
 
   .section { display: flex; flex-direction: column; gap: 6px; }
-  .section-title { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--sublabel); padding-bottom: 5px; border-bottom: 1px solid var(--border); }
+
+  /* Collapsible sections (Art Image, Custom Nation) — native <details>,
+     styled so the summary looks exactly like a normal .section-title,
+     just clickable with a chevron. Keeps the sidebar shorter by default
+     for people who set the image once and don't need to see the upload/
+     drag controls every time they scroll past. */
+  details.section > summary { cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::after { content: '⌄'; font-size: 13px; font-weight: 700; color: var(--sublabel); transition: transform 0.15s; margin-left: 6px; }
+  details.section[open] > summary::after { transform: rotate(180deg); }
+
+  /* "Fine-tune size & position" — a smaller, in-context collapsible for
+     the repeated Font Size + Vertical Position row-pairs under Name,
+     Keywords and Card Text. Collapsed by default (most people just hit
+     Auto and move on); JS opens it automatically if a value differs
+     from default so a customized card never hides its own settings. */
+  details.finetune { margin-top: 8px; }
+  details.finetune > summary {
+    cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px;
+    font-size: 11.5px; font-weight: 700; color: var(--accent-hint);
+    text-transform: uppercase; letter-spacing: 0.4px; user-select: none;
+    padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--input-bg); transition: background 0.15s, border-color 0.15s;
+  }
+  details.finetune > summary::-webkit-details-marker { display: none; }
+  details.finetune > summary::before { content: '▸'; font-size: 10px; transition: transform 0.15s; }
+  details.finetune[open] > summary::before { transform: rotate(90deg); }
+  details.finetune > summary:hover { background: var(--toggle-active-bg); border-color: var(--accent-hint); }
+  details.finetune[open] > summary { border-radius: 6px 6px 0 0; margin-bottom: 2px; }
+  .section-title { font-size: 10.5px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--sublabel); padding-bottom: 5px; border-bottom: 1px solid var(--border); }
 
   label { font-size: 12px; color: var(--label); display: flex; flex-direction: column; gap: 3px; }
-  label span { font-size: 10px; color: var(--sublabel); text-transform: uppercase; letter-spacing: 0.5px; }
+  label span { font-size: 10.5px; font-weight: 500; color: var(--sublabel); text-transform: uppercase; letter-spacing: 0.5px; }
 
   input[type=text], input[type=number], select, textarea {
     background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text);
@@ -82,7 +113,8 @@
   button.danger { border-color: #e0d0d0; color: #c08080; }
   button.danger:hover { color: #a06060; }
 
-  .hint { font-size: 10px; color: var(--sublabel); }
+  .hint { font-size: 11px; color: var(--hint); line-height: 1.4; }
+  .hint-action { font-size: 11.5px; font-weight: 600; color: var(--accent-hint); letter-spacing: 0.2px; }
 
   canvas#cardCanvas { touch-action: none; }
 
@@ -125,7 +157,8 @@
 
   /* Phones in LANDSCAPE: shrink sidebar; card scales to fit height. */
   @media (max-width: 900px) and (orientation: landscape) {
-    .controls { width: 220px; padding: 10px; gap: 8px; }
+    .controls { width: 220px; }
+    .controls-scroll { padding: 10px; gap: 8px; }
     .preview {
       padding: 8px;
       align-items: center;
@@ -156,6 +189,15 @@
         <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
       </svg>
     </a>
+    <a id="coffeeLink" href="https://buymeacoffee.com/verykraken" target="_blank" rel="noopener noreferrer" title="Buy me a coffee" aria-label="Buy me a coffee">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+        <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+        <line x1="6" y1="1" x2="6" y2="4"/>
+        <line x1="10" y1="1" x2="10" y2="4"/>
+        <line x1="14" y1="1" x2="14" y2="4"/>
+      </svg>
+    </a>
     <button id="themeToggle">Dark</button>
   </div>
 </header>
@@ -163,9 +205,12 @@
 <div class="main">
   <div class="preview">
     <canvas id="cardCanvas" width="650" height="650"></canvas>
+    <canvas id="handleOverlay" style="position:absolute; pointer-events:none; top:0; left:0;"></canvas>
   </div>
 
   <div class="controls">
+
+    <div class="controls-scroll">
 
     <div class="section">
       <div class="section-title">Card Type</div>
@@ -178,20 +223,40 @@
 
     <div class="section">
       <div class="section-title">Nation</div>
-      <label><select id="nation">
-        <option value="neutral">Neutral</option>
-        <option value="germany">Germany</option>
-        <option value="ussr">USSR</option>
-        <option value="usa">USA</option>
-        <option value="britain">Britain</option>
-        <option value="poland">Poland</option>
-        <option value="france">France</option>
-        <option value="japan">Japan</option>
-        <option value="finland">Finland</option>
-        <option value="italy">Italy</option>
-        <option value="anzac">ANZAC</option>
-      </select></label>
+      <div class="row" style="gap:8px; align-items:stretch;">
+        <label style="flex:1;"><select id="nation">
+          <option value="neutral">Neutral</option>
+          <option value="germany">Germany</option>
+          <option value="ussr">USSR</option>
+          <option value="usa">USA</option>
+          <option value="britain">Britain</option>
+          <option value="poland">Poland</option>
+          <option value="france">France</option>
+          <option value="japan">Japan</option>
+          <option value="finland">Finland</option>
+          <option value="italy">Italy</option>
+          <option value="anzac">ANZAC</option>
+        </select></label>
+        <button type="button" class="toggle-btn" id="addCustomNationBtn" style="flex:0 0 auto; padding:0 14px;" title="Add a custom nation">+</button>
+      </div>
     </div>
+
+    <details class="section" id="customNationSection" style="display:none;" open>
+      <summary class="section-title">Custom Nation</summary>
+      <label><span>Name</span>
+        <input type="text" id="customNationNameInput" placeholder="Custom nation name...">
+      </label>
+      <div class="hint" id="customNationSlotLabel" style="margin-bottom:6px;"></div>
+      <label><span>Upload image</span>
+        <input type="file" id="customNationImageInput" accept="image/*" style="font-size:11px; padding:4px 0;">
+      </label>
+      <div class="hint hint-action" id="customNationDragHint" style="margin-top:4px;">↕ Drag to move · ⤡ drag a corner to resize</div>
+      <button type="button" class="toggle-btn" id="customNationLockToggle" style="margin-top:6px; width:100%;">Lock</button>
+      <div class="actions" style="margin-top:6px;">
+        <button class="primary danger" id="customNationRemoveImageBtn">Remove Image</button>
+      </div>
+      <button type="button" class="primary danger" id="customNationDeleteBtn" style="margin-top:8px; width:100%;">Delete Custom Nation</button>
+    </details>
 
     <div class="section" id="unitTypeSection">
       <div class="section-title">Unit Type</div>
@@ -207,18 +272,21 @@
     <div class="section" id="nameSection">
       <div class="section-title">Name</div>
       <label><input type="text" id="cardName" value="" placeholder="Card name..."></label>
-      <div id="nameFontSizeLabel" class="row" style="margin-top:4px; align-items:flex-end;">
-        <label style="flex:1;"><span>Font Size</span><input type="number" id="nameFontSize" value="47" min="10" max="60"></label>
-        <button type="button" class="primary" id="nameFontSizeReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
-      </div>
-      <div id="orderNameFontSizeLabel" class="row" style="margin-top:4px; align-items:flex-end; display:none;">
-        <label style="flex:1;"><span>Font Size</span><input type="number" id="orderNameFontSize" value="40" min="10" max="60"></label>
-        <button type="button" class="primary" id="orderNameFontSizeReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
-      </div>
-      <div id="orderNamePositionLabel" class="row" style="margin-top:4px; align-items:flex-end; display:none;">
-        <label style="flex:1;"><span>Vertical Position <span class="offset-val" id="nameOffsetYVal">0</span></span><input type="range" id="nameOffsetY" min="-50" max="50" step="1" value="0"></label>
-        <button type="button" class="primary" id="nameOffsetYReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
-      </div>
+      <details class="finetune" id="nameFineTune">
+        <summary>Fine-tune size &amp; position</summary>
+        <div id="nameFontSizeLabel" class="row" style="margin-top:4px; align-items:flex-end;">
+          <label style="flex:1;"><span>Font Size</span><input type="number" id="nameFontSize" value="47" min="10" max="60"></label>
+          <button type="button" class="primary" id="nameFontSizeReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
+        </div>
+        <div id="orderNameFontSizeLabel" class="row" style="margin-top:4px; align-items:flex-end; display:none;">
+          <label style="flex:1;"><span>Font Size</span><input type="number" id="orderNameFontSize" value="40" min="10" max="60"></label>
+          <button type="button" class="primary" id="orderNameFontSizeReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
+        </div>
+        <div id="orderNamePositionLabel" class="row" style="margin-top:4px; align-items:flex-end; display:none;">
+          <label style="flex:1;"><span>Vertical Position <span class="offset-val" id="nameOffsetYVal">0</span></span><input type="range" id="nameOffsetY" min="-50" max="50" step="1" value="0"></label>
+          <button type="button" class="primary" id="nameOffsetYReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
+        </div>
+      </details>
     </div>
 
     <div class="section">
@@ -253,28 +321,34 @@
     </div>
 
     <div class="section" id="keywordsFontSizeSection">
-      <div class="row" style="align-items:flex-end;">
-        <label style="flex:1;"><span>Keywords Font Size</span><input type="number" id="keywordsFontSize" value="26" min="10" max="50"></label>
-        <button type="button" class="primary" id="keywordsFontSizeReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
-      </div>
-      <div class="row" style="align-items:flex-end; margin-top:4px;">
-        <label style="flex:1;"><span>Vertical Position <span class="offset-val" id="keywordsOffsetYVal">0</span></span><input type="range" id="keywordsOffsetY" min="-50" max="50" step="1" value="0"></label>
-        <button type="button" class="primary" id="keywordsOffsetYReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
-      </div>
+      <details class="finetune" id="keywordsFineTune">
+        <summary>Fine-tune size &amp; position</summary>
+        <div class="row" style="align-items:flex-end;">
+          <label style="flex:1;"><span>Keywords Font Size</span><input type="number" id="keywordsFontSize" value="26" min="10" max="50"></label>
+          <button type="button" class="primary" id="keywordsFontSizeReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
+        </div>
+        <div class="row" style="align-items:flex-end; margin-top:4px;">
+          <label style="flex:1;"><span>Vertical Position <span class="offset-val" id="keywordsOffsetYVal">0</span></span><input type="range" id="keywordsOffsetY" min="-50" max="50" step="1" value="0"></label>
+          <button type="button" class="primary" id="keywordsOffsetYReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
+        </div>
+      </details>
     </div>
 
     <div class="section">
       <div class="section-title">Card Text</div>
       <label><textarea id="cardText" rows="3" placeholder="Card text..."></textarea></label>
       <div class="hint">Wrap in **bold** for bold. Enter for new line.</div>
-      <div class="row" style="align-items:flex-end; margin-top:4px;">
-        <label style="flex:1;"><span>Text Font Size</span><input type="number" id="textFontSize" value="26" min="10" max="50"></label>
-        <button type="button" class="primary" id="textFontSizeReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
-      </div>
-      <div class="row" style="align-items:flex-end; margin-top:4px;">
-        <label style="flex:1;"><span>Vertical Position <span class="offset-val" id="textOffsetYVal">0</span></span><input type="range" id="textOffsetY" min="-50" max="50" step="1" value="0"></label>
-        <button type="button" class="primary" id="textOffsetYReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
-      </div>
+      <details class="finetune" id="textFineTune">
+        <summary>Fine-tune size &amp; position</summary>
+        <div class="row" style="align-items:flex-end; margin-top:4px;">
+          <label style="flex:1;"><span>Text Font Size</span><input type="number" id="textFontSize" value="26" min="10" max="50"></label>
+          <button type="button" class="primary" id="textFontSizeReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
+        </div>
+        <div class="row" style="align-items:flex-end; margin-top:4px;">
+          <label style="flex:1;"><span>Vertical Position <span class="offset-val" id="textOffsetYVal">0</span></span><input type="range" id="textOffsetY" min="-50" max="50" step="1" value="0"></label>
+          <button type="button" class="primary" id="textOffsetYReset" style="flex:0 0 auto; padding:6px 12px;">Auto</button>
+        </div>
+      </details>
     </div>
 
     <div class="section">
@@ -293,18 +367,21 @@
     </div>
 
 
-    <div class="section">
-      <div class="section-title">Art Image</div>
+    <details class="section" open>
+      <summary class="section-title">Art Image</summary>
       <label><span>Upload image</span>
         <input type="file" id="artImageInput" accept="image/*" style="font-size:11px; padding:4px 0;">
       </label>
-      <div class="hint" style="margin-top:4px;">Scroll to scale · Drag to position</div>
+      <div class="hint hint-action" style="margin-top:4px;">⟳ Scroll to scale · ↕ drag to position</div>
       <button type="button" class="toggle-btn" id="artLockToggle" style="margin-top:6px; width:100%;">Lock Art</button>
       <div class="actions" style="margin-top:6px;">
         <button class="primary danger" id="clearArtBtn">Remove Art</button>
       </div>
+    </details>
+
     </div>
 
+    <div class="controls-footer">
       <div class="row" style="gap:8px;">
         <button type="button" class="toggle-btn" id="undoBtn" style="flex:1;" disabled>↶ Undo</button>
         <button type="button" class="toggle-btn" id="redoBtn" style="flex:1;" disabled>↷ Redo</button>
@@ -315,6 +392,7 @@
 
   </div>
 </div>
+
 
 <script>
 const ASSETS = {
@@ -431,6 +509,395 @@ if (window.matchMedia('(max-width: 900px)').matches) {
   });
 }
 ctx.scale(DPR, DPR);
+ctx.imageSmoothingEnabled = true;
+ctx.imageSmoothingQuality = 'high';
+
+// Canvas2D's single-step image scaling gets noticeably soft/aliased once
+// the reduction is much more than ~2x (e.g. a 1000px upload fit into a
+// 110px badge) — even with imageSmoothingQuality:'high'. Halving the
+// image down in several steps ("mipmap" style) before the final draw
+// keeps user-uploaded art crisp instead of mushy at small sizes.
+function drawImageHQ(destCtx, img, dx, dy, dw, dh) {
+  const srcW = img.naturalWidth || img.width;
+  const srcH = img.naturalHeight || img.height;
+  if (!srcW || !srcH || dw <= 0 || dh <= 0) return;
+  if (srcW * 0.5 <= dw || srcH * 0.5 <= dh) {
+    // Less than 2x reduction (or an upscale) — native smoothing is fine.
+    destCtx.drawImage(img, dx, dy, dw, dh);
+    return;
+  }
+  let curW = srcW, curH = srcH;
+  let src = img;
+  while (curW * 0.5 > dw && curH * 0.5 > dh) {
+    const nextW = Math.max(1, Math.floor(curW * 0.5));
+    const nextH = Math.max(1, Math.floor(curH * 0.5));
+    const step = document.createElement('canvas');
+    step.width = nextW;
+    step.height = nextH;
+    const sctx = step.getContext('2d');
+    sctx.imageSmoothingEnabled = true;
+    sctx.imageSmoothingQuality = 'high';
+    sctx.drawImage(src, 0, 0, curW, curH, 0, 0, nextW, nextH);
+    src = step;
+    curW = nextW; curH = nextH;
+  }
+  destCtx.drawImage(src, 0, 0, curW, curH, dx, dy, dw, dh);
+}
+
+// Custom-nation badges/headers only ever render at up to ~130px on the
+// card, but a raw upload (phone photo, wiki SVG export, etc.) can be
+// several thousand px — storing that untouched would needlessly bloat
+// localStorage quota AND every undo/redo snapshot (customNations now
+// rides along in both). Cap to a generous-but-sane resolution up front,
+// once, at upload time.
+function capImageForStorage(img, maxDim = 600) {
+  const srcW = img.naturalWidth || img.width;
+  const srcH = img.naturalHeight || img.height;
+  if (srcW <= maxDim && srcH <= maxDim) return img.src; // already small enough
+  const scale = maxDim / Math.max(srcW, srcH);
+  const w = Math.max(1, Math.round(srcW * scale));
+  const h = Math.max(1, Math.round(srcH * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const cctx = canvas.getContext('2d');
+  cctx.imageSmoothingEnabled = true;
+  cctx.imageSmoothingQuality = 'high';
+  drawImageHQ(cctx, img, 0, 0, w, h);
+  return canvas.toDataURL('image/png'); // PNG — these are logos/emblems, keep transparency
+}
+
+// ── Custom Nations ──────────────────────────────────────────────────
+// A "custom nation" bundles up to 3 independently-positioned images:
+//   • unitGround — used for Unit cards whose Unit Type is ground (Infantry/Tank/Artillery)
+//   • unitAir    — used for Unit cards whose Unit Type is air (Fighter/Bomber).
+//                  Falls back to unitGround's image (with its OWN position/scale)
+//                  until its own image is uploaded.
+//   • orderBadge — used for Order/Countermeasure cards (small badge, top-right)
+// Persisted separately from card state/undo-history — these are reusable
+// assets across many cards, not per-card data, so Reset/Undo never touch them.
+const CUSTOM_NATION_MAX = 3;
+const CUSTOM_NATIONS_KEY = 'kards-custom-nations';
+
+// Zones (logical 0-650 canvas space) each slot is clipped to.
+const HEADER_ZONE = { x: 195, y: 39, w: 332, h: 66 };   // unit header banner
+const BADGE_ZONE  = { x: 442, y: 42, w: 83, h: 83 };    // order/CM nation badge — kept inside the card's real border (measured from the template art: right border starts x=527, top border ends y=38)
+
+function emptySlot() {
+  return { src: null, x: 0, y: 0, scaleX: 1, scaleY: 1, locked: false, fitted: false };
+}
+
+let customNations = [];
+
+function loadCustomNations() {
+  try {
+    const raw = localStorage.getItem(CUSTOM_NATIONS_KEY);
+    if (raw) customNations = JSON.parse(raw);
+  } catch (err) {
+    console.warn('Could not load custom nations:', err);
+    customNations = [];
+  }
+}
+loadCustomNations();
+
+function saveCustomNations() {
+  try {
+    localStorage.setItem(CUSTOM_NATIONS_KEY, JSON.stringify(customNations));
+  } catch (err) {
+    console.warn('Could not save custom nations (possibly storage quota):', err);
+  }
+}
+
+function getCustomNation(id) {
+  return customNations.find(c => c.id === id) || null;
+}
+function isCustomNation() {
+  return typeof state.nation === 'string' && state.nation.startsWith('custom:');
+}
+function activeCustomNation() {
+  if (!isCustomNation()) return null;
+  return getCustomNation(state.nation.slice(7));
+}
+function activeCustomSlotKey() {
+  if (state.cardType === 'unit') return isAirUnit() ? 'unitAir' : 'unitGround';
+  return 'orderBadge';
+}
+function activeCustomZone() {
+  return activeCustomSlotKey() === 'orderBadge' ? BADGE_ZONE : HEADER_ZONE;
+}
+// If the Air slot has never been given its own image, quietly seed its
+// position/scale from Ground the first time it's viewed/edited, so it
+// doesn't render at a stray (0,0, scale 1) before the user touches it.
+function ensureAirInheritsGround(cn) {
+  if (!cn.unitAir.fitted && !cn.unitAir.src && cn.unitGround.fitted) {
+    cn.unitAir.x = cn.unitGround.x;
+    cn.unitAir.y = cn.unitGround.y;
+    cn.unitAir.scaleX = cn.unitGround.scaleX;
+    cn.unitAir.scaleY = cn.unitGround.scaleY;
+    cn.unitAir.fitted = true;
+    saveCustomNations();
+  }
+}
+// The slot object to edit — always has its own position/scale, even
+// when (for unitAir) it's currently borrowing Ground's image.
+function activeCustomSlot() {
+  const cn = activeCustomNation();
+  if (!cn) return null;
+  const key = activeCustomSlotKey();
+  if (key === 'unitAir') ensureAirInheritsGround(cn);
+  return cn[key];
+}
+// The image src that should actually be painted for the current slot.
+function activeCustomRenderSrc() {
+  const cn = activeCustomNation();
+  if (!cn) return null;
+  const key = activeCustomSlotKey();
+  if (key === 'unitAir') return cn.unitAir.src || cn.unitGround.src;
+  return cn[key].src;
+}
+
+function createCustomNation() {
+  if (customNations.length >= CUSTOM_NATION_MAX) {
+    alert(`You can only have ${CUSTOM_NATION_MAX} custom nations at once. Delete one first.`);
+    return null;
+  }
+  let name = 'Custom Nation';
+  let n = 2;
+  const existingNames = new Set(customNations.map(c => c.name));
+  while (existingNames.has(name)) { name = `Custom Nation ${n}`; n++; }
+  const cn = {
+    id: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    name,
+    unitGround: emptySlot(),
+    unitAir: emptySlot(),
+    orderBadge: emptySlot(),
+  };
+  customNations.push(cn);
+  saveCustomNations();
+  return cn;
+}
+function deleteCustomNation(id) {
+  customNations = customNations.filter(c => c.id !== id);
+  saveCustomNations();
+}
+
+function rebuildNationSelect() {
+  const sel = document.getElementById('nation');
+  const current = sel.value;
+  sel.querySelectorAll('[data-custom-injected]').forEach(el => el.remove());
+
+  if (customNations.length) {
+    const group = document.createElement('optgroup');
+    group.label = 'Custom';
+    group.setAttribute('data-custom-injected', '1');
+    customNations.forEach(cn => {
+      const opt = document.createElement('option');
+      opt.value = 'custom:' + cn.id;
+      opt.textContent = cn.name;
+      group.appendChild(opt);
+    });
+    sel.appendChild(group);
+  }
+
+  if ([...sel.options].some(o => o.value === current)) sel.value = current;
+}
+
+function slotLabelText(key) {
+  if (key === 'unitGround') return 'Editing: Ground Header';
+  if (key === 'unitAir') return 'Editing: Air Header';
+  return 'Editing: Order/Countermeasure Badge';
+}
+
+function refreshCustomNationPanel() {
+  const section = document.getElementById('customNationSection');
+  const cn = activeCustomNation();
+  if (!cn) { section.style.display = 'none'; drawHandleOverlay(); return; }
+  section.style.display = '';
+  const nameInput = document.getElementById('customNationNameInput');
+  if (document.activeElement !== nameInput) nameInput.value = cn.name;
+  const key = activeCustomSlotKey();
+  const slot = cn[key];
+  let label = slotLabelText(key);
+  if (key === 'unitAir' && !slot.src && cn.unitGround.src) {
+    label += ' (using Ground image for now)';
+  }
+  document.getElementById('customNationSlotLabel').textContent = label;
+  const lockBtn = document.getElementById('customNationLockToggle');
+  lockBtn.textContent = slot.locked ? 'Unlock' : 'Lock';
+  lockBtn.classList.toggle('active', slot.locked);
+  document.getElementById('customNationDragHint').style.display = slot.locked ? 'none' : '';
+  drawHandleOverlay();
+}
+
+function fitSlotToZone(slot, img, zone) {
+  const fit = Math.min(zone.w / img.naturalWidth, zone.h / img.naturalHeight);
+  slot.scaleX = fit;
+  slot.scaleY = fit;
+  slot.x = zone.x + (zone.w - img.naturalWidth * fit) / 2;
+  slot.y = zone.y + (zone.h - img.naturalHeight * fit) / 2;
+  slot.fitted = true;
+}
+
+async function drawCustomSlotImage() {
+  const src = activeCustomRenderSrc();
+  if (!src) return;
+  const slot = activeCustomSlot();
+  const zone = activeCustomZone();
+  const img = await loadImg(src);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(zone.x, zone.y, zone.w, zone.h);
+  ctx.clip();
+  drawImageHQ(ctx, img, slot.x, slot.y, img.naturalWidth * slot.scaleX, img.naturalHeight * slot.scaleY);
+  ctx.restore();
+}
+
+// ── Custom-slot drag / corner-resize on the canvas ──────────────────
+const HANDLE_HIT_RADIUS = 20; // logical px — generous for touch/mouse
+const MIN_SLOT_PX = 10;       // never let a slot collapse below this
+let customDrag = null;
+
+function toCanvasCoords(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (clientX - rect.left) * (650 / rect.width),
+    y: (clientY - rect.top) * (650 / rect.height),
+  };
+}
+
+function customSlotBBox() {
+  const slot = activeCustomSlot();
+  if (!slot) return null;
+  const src = activeCustomRenderSrc();
+  if (!src) return null;
+  const img = imgCache[src];
+  if (!img) return null; // not decoded/cached yet
+  return {
+    x: slot.x, y: slot.y,
+    w: img.naturalWidth * slot.scaleX,
+    h: img.naturalHeight * slot.scaleY,
+    natW: img.naturalWidth, natH: img.naturalHeight,
+  };
+}
+
+function hitTestCustomSlot(cx, cy) {
+  const slot = activeCustomSlot();
+  if (!slot || slot.locked) return null;
+  const bbox = customSlotBBox();
+  if (!bbox) return null;
+  const corners = {
+    tl: { x: bbox.x, y: bbox.y },
+    tr: { x: bbox.x + bbox.w, y: bbox.y },
+    bl: { x: bbox.x, y: bbox.y + bbox.h },
+    br: { x: bbox.x + bbox.w, y: bbox.y + bbox.h },
+  };
+  for (const name in corners) {
+    const pt = corners[name];
+    if (Math.hypot(cx - pt.x, cy - pt.y) <= HANDLE_HIT_RADIUS) return { mode: name, bbox };
+  }
+  if (cx >= bbox.x && cx <= bbox.x + bbox.w && cy >= bbox.y && cy <= bbox.y + bbox.h) {
+    return { mode: 'move', bbox };
+  }
+  return null;
+}
+
+function applyCustomDragDelta(drag, dx, dy, uniform) {
+  const slot = drag.slot;
+  if (drag.mode === 'move') {
+    slot.x += dx;
+    slot.y += dy;
+    return;
+  }
+  const movesLeft = drag.mode === 'tl' || drag.mode === 'bl';
+  const movesRight = drag.mode === 'tr' || drag.mode === 'br';
+  const movesTop = drag.mode === 'tl' || drag.mode === 'tr';
+  const movesBottom = drag.mode === 'bl' || drag.mode === 'br';
+
+  if (uniform) {
+    // Shift held: resize proportionally, locked to the image's natural
+    // aspect ratio. Whichever axis moved further this step drives the
+    // resize; the other axis is derived from it, so the box keeps its
+    // proportions regardless of exact mouse direction.
+    const aspect = drag.natH / drag.natW;
+    const growX = dx * (movesLeft ? -1 : 1);
+    const growY = dy * (movesTop ? -1 : 1);
+    let dw, dh;
+    if (Math.abs(growX) >= Math.abs(growY)) {
+      dw = growX;
+      dh = dw * aspect;
+    } else {
+      dh = growY;
+      dw = dh / aspect;
+    }
+    if (movesLeft) drag.left -= dw; else drag.right += dw;
+    if (movesTop) drag.top -= dh; else drag.bottom += dh;
+  } else {
+    if (movesLeft) drag.left += dx;
+    if (movesRight) drag.right += dx;
+    if (movesTop) drag.top += dy;
+    if (movesBottom) drag.bottom += dy;
+  }
+
+  let w = drag.right - drag.left;
+  let h = drag.bottom - drag.top;
+  if (w < MIN_SLOT_PX) { w = MIN_SLOT_PX; if (movesLeft) drag.left = drag.right - w; else drag.right = drag.left + w; }
+  if (h < MIN_SLOT_PX) { h = MIN_SLOT_PX; if (movesTop) drag.top = drag.bottom - h; else drag.bottom = drag.top + h; }
+
+  slot.scaleX = w / drag.natW;
+  slot.scaleY = h / drag.natH;
+  slot.x = drag.left;
+  slot.y = drag.top;
+}
+
+// ── Handle overlay (selection box + corner squares) ─────────────────
+// A separate transparent canvas on top of the main one, so the drag
+// handles never end up baked into the exported/saved PNG.
+const handleOverlay = document.getElementById('handleOverlay');
+const hctx = handleOverlay.getContext('2d');
+
+function syncHandleOverlaySize() {
+  const dpr = window.devicePixelRatio || 1;
+  handleOverlay.style.left = canvas.offsetLeft + 'px';
+  handleOverlay.style.top = canvas.offsetTop + 'px';
+  handleOverlay.style.width = canvas.offsetWidth + 'px';
+  handleOverlay.style.height = canvas.offsetHeight + 'px';
+  const w = Math.round(canvas.offsetWidth * dpr);
+  const h = Math.round(canvas.offsetHeight * dpr);
+  if (w > 0 && handleOverlay.width !== w) handleOverlay.width = w;
+  if (h > 0 && handleOverlay.height !== h) handleOverlay.height = h;
+}
+
+function drawHandleOverlay() {
+  if (!canvas.offsetWidth) return; // not laid out yet
+  syncHandleOverlaySize();
+  hctx.setTransform(1, 0, 0, 1, 0, 0);
+  hctx.clearRect(0, 0, handleOverlay.width, handleOverlay.height);
+  const slot = activeCustomSlot();
+  if (!slot || slot.locked) return;
+  const bbox = customSlotBBox();
+  if (!bbox) return;
+
+  const ratio = (canvas.offsetWidth / 650) * (window.devicePixelRatio || 1);
+  hctx.save();
+  hctx.scale(ratio, ratio);
+  const lx = bbox.x, ty = bbox.y, rx = bbox.x + bbox.w, by = bbox.y + bbox.h;
+
+  hctx.strokeStyle = '#e8a33d';
+  hctx.lineWidth = 1.5;
+  hctx.setLineDash([6, 4]);
+  hctx.strokeRect(lx, ty, rx - lx, by - ty);
+  hctx.setLineDash([]);
+
+  const HS = 10;
+  hctx.fillStyle = '#e8a33d';
+  hctx.strokeStyle = '#3a2f1f';
+  [[lx, ty], [rx, ty], [lx, by], [rx, by]].forEach(([hx, hy]) => {
+    hctx.fillRect(hx - HS / 2, hy - HS / 2, HS, HS);
+    hctx.strokeRect(hx - HS / 2, hy - HS / 2, HS, HS);
+  });
+  hctx.restore();
+}
+window.addEventListener('resize', () => drawHandleOverlay());
 
 function loadImg(src) {
   return new Promise(res => {
@@ -476,25 +943,33 @@ async function draw(skipClear = false) {
 
   // 2. Header art — ONLY for units
   if (isUnit) {
-    const airSuffix = isAirUnit() ? 'air' : 'ground';
-    const hKey = state.nation === 'neutral' ? 'header_neutral' : `header_${state.nation}_${airSuffix}`;
-    if (ASSETS[hKey]) {
-      const hImg = await loadImg(ASSETS[hKey]);
-      ctx.drawImage(hImg, 195, 39, 332, 66);
+    if (isCustomNation()) {
+      await drawCustomSlotImage();
+    } else {
+      const airSuffix = isAirUnit() ? 'air' : 'ground';
+      const hKey = state.nation === 'neutral' ? 'header_neutral' : `header_${state.nation}_${airSuffix}`;
+      if (ASSETS[hKey]) {
+        const hImg = await loadImg(ASSETS[hKey]);
+        ctx.drawImage(hImg, 195, 39, 332, 66);
+      }
     }
   }
 
   // 3. Nation logo — ONLY for orders and countermeasures
   if (!isUnit) {
-    const nationKey = `nation_${state.nation}`;
-    if (ASSETS[nationKey]) {
-      const nImg = await loadImg(ASSETS[nationKey]);
-      // USSR and USA icons sit slightly off vs. the other nations —
-      // nudge them up 9px and left 3px to line up visually.
-      const needsNudge = state.nation === 'ussr' || state.nation === 'usa';
-      const nX = needsNudge ? 469 - 3 : 469;
-      const nY = needsNudge ? 50 - 7 : 50;
-      ctx.drawImage(nImg, nX, nY);
+    if (isCustomNation()) {
+      await drawCustomSlotImage();
+    } else {
+      const nationKey = `nation_${state.nation}`;
+      if (ASSETS[nationKey]) {
+        const nImg = await loadImg(ASSETS[nationKey]);
+        // USSR and USA icons sit slightly off vs. the other nations —
+        // nudge them up 9px and left 3px to line up visually.
+        const needsNudge = state.nation === 'ussr' || state.nation === 'usa';
+        const nX = needsNudge ? 469 - 3 : 469;
+        const nY = needsNudge ? 50 - 7 : 50;
+        ctx.drawImage(nImg, nX, nY);
+      }
     }
   }
 
@@ -612,13 +1087,13 @@ async function draw(skipClear = false) {
     let textY = 504 + state.textOffsetY;
     if (kws) {
       ctx.font = `bold ${state.keywordsFontSize}px FranklinMed`;
-      ctx.fillStyle = '#4d4d48';
+      ctx.fillStyle = '#525559';
       ctx.textAlign = 'center';
       ctx.fillText(kws, 325, 504 + state.keywordsOffsetY);
       textY = 534 + state.textOffsetY;
     }
     if (state.text.trim()) {
-      drawRichText(ctx, state.text, 325, textY, state.textFontSize, '#4d4d48', 640, 1.15);
+      drawRichText(ctx, state.text, 325, textY, state.textFontSize, '#525559', 640, 1.15);
     }
 
   } else {
@@ -658,7 +1133,7 @@ async function draw(skipClear = false) {
       410, state.orderNameFontSize || 40, 6
     );
     ctx.font = `bold ${nonUnitFitSize}px FranklinMed`;
-    ctx.fillStyle = '#4c4c46';
+    ctx.fillStyle = '#44474d';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText(nonUnitName, 325, 466 + state.nameOffsetY);
@@ -669,14 +1144,14 @@ async function draw(skipClear = false) {
     let textYNonUnit = 512 + state.textOffsetY;
     if (kwsNonUnit) {
       ctx.font = `bold ${state.keywordsFontSize}px FranklinMed`;
-      ctx.fillStyle = '#575750';
+      ctx.fillStyle = '#525559';
       ctx.textAlign = 'center';
       ctx.fillText(kwsNonUnit, 325, 507 + state.keywordsOffsetY);
       textYNonUnit = 537 + state.textOffsetY;
     }
     // Card text
     if (state.text.trim()) {
-      drawRichText(ctx, state.text, 325, textYNonUnit, state.textFontSize, '#575750', 640, 1.20);
+      drawRichText(ctx, state.text, 325, textYNonUnit, state.textFontSize, '#525559', 640, 1.20);
     }
   }
 }
@@ -834,6 +1309,8 @@ function updateCardTypeVisibility() {
   document.getElementById('orderNamePositionLabel').style.display = isUnit ? 'none' : '';
   // Card type changes base Y and zone bounds — recalculate slider limits.
   if (typeof updateOffsetSliderLimits === 'function') updateOffsetSliderLimits();
+  // Unit ↔ Order/CM swaps which custom-nation slot is active.
+  if (typeof refreshCustomNationPanel === 'function') refreshCustomNationPanel();
 }
 function updateRarityVariantVisibility() {
   const v = state.rarity;
@@ -841,7 +1318,7 @@ function updateRarityVariantVisibility() {
 }
 
 setupToggle('typeToggle', 'cardType', updateCardTypeVisibility);
-setupToggle('unitTypeToggle', 'unitType');
+setupToggle('unitTypeToggle', 'unitType', refreshCustomNationPanel);
 setupToggle('rarityToggle', 'rarity', updateRarityVariantVisibility);
 setupToggle('rarityVariantSection', 'rarityVariant');
 
@@ -853,7 +1330,27 @@ function bind(id, key, transform) {
     scheduleCheckpoint();
   });
 }
-bind('nation', 'nation');
+document.getElementById('nation').addEventListener('change', (e) => {
+  state.nation = e.target.value;
+  refreshCustomNationPanel();
+  drawWithArt();
+  scheduleCheckpoint();
+});
+document.getElementById('addCustomNationBtn').addEventListener('click', () => {
+  const cn = createCustomNation();
+  if (!cn) return; // at the 3-nation cap, createCustomNation() already alerted
+  rebuildNationSelect();
+  state.nation = 'custom:' + cn.id;
+  document.getElementById('nation').value = state.nation;
+  refreshCustomNationPanel();
+  drawWithArt();
+  checkpoint();
+  // Focus the name field so the user can immediately rename it — it
+  // already works fine with the default name if they skip this.
+  const nameInput = document.getElementById('customNationNameInput');
+  nameInput.focus();
+  nameInput.select();
+});
 bind('cardName', 'name');
 bind('kreditCost', 'kreditCost', v => Math.max(0, Math.min(99, parseInt(v)||0)));
 bind('opCost', 'opCost', v => Math.max(0, Math.min(9, parseInt(v)||0)));
@@ -1105,14 +1602,29 @@ document.getElementById('artImageInput').addEventListener('change', (e) => {
   reader.onload = (ev) => {
     const img = new Image();
     img.onload = () => {
-      artImg = img;
-      // Fit art into the art area (ART_W x ART_H), centred in it
-      const fit = Math.min(ART_W / img.naturalWidth, ART_H / img.naturalHeight);
-      artScale = fit;
-      artX = ART_X + (ART_W - img.naturalWidth * artScale) / 2;
-      artY = ART_Y + (ART_H - img.naturalHeight * artScale) / 2;
-      drawWithArt();
-      checkpoint(); // record the load so undo can step back to "no art"
+      // Cap stored resolution — the art area is 411x460 logical px, but
+      // users can zoom in past the initial fit, so leave real headroom.
+      // This keeps large phone-camera uploads (often 3000px+, several MB)
+      // from bloating localStorage (autosave draft) or the in-memory
+      // undo history, which now carries the art image on every step.
+      const capped = capImageForStorage(img, 900);
+      const finalize = (finalImg) => {
+        artImg = finalImg;
+        // Fit art into the art area (ART_W x ART_H), centred in it
+        const fit = Math.min(ART_W / finalImg.naturalWidth, ART_H / finalImg.naturalHeight);
+        artScale = fit;
+        artX = ART_X + (ART_W - finalImg.naturalWidth * artScale) / 2;
+        artY = ART_Y + (ART_H - finalImg.naturalHeight * artScale) / 2;
+        drawWithArt();
+        checkpoint(); // record the load so undo can step back to "no art"
+      };
+      if (capped === img.src) {
+        finalize(img);
+      } else {
+        const cappedImg = new Image();
+        cappedImg.onload = () => finalize(cappedImg);
+        cappedImg.src = capped;
+      }
     };
     img.src = ev.target.result;
   };
@@ -1134,6 +1646,98 @@ artLockBtn.addEventListener('click', () => {
   checkpoint();
 });
 
+// ── Custom Nation panel wiring ────────────────────────────────────
+document.getElementById('customNationNameInput').addEventListener('input', (e) => {
+  const cn = activeCustomNation();
+  if (!cn) return;
+  cn.name = e.target.value;
+  saveCustomNations();
+  // Keep the <select>'s option label live without rebuilding the whole
+  // list (which would steal focus from the input mid-typing).
+  const opt = document.querySelector(`#nation option[value="custom:${cn.id}"]`);
+  if (opt) opt.textContent = cn.name || 'Custom Nation';
+  scheduleCheckpoint();
+});
+document.getElementById('customNationNameInput').addEventListener('blur', () => {
+  const cn = activeCustomNation();
+  if (!cn) return;
+  if (!cn.name.trim()) cn.name = 'Custom Nation';
+  cn.name = cn.name.trim();
+  saveCustomNations();
+  rebuildNationSelect();
+  document.getElementById('nation').value = state.nation;
+  document.getElementById('customNationNameInput').value = cn.name;
+  checkpoint();
+});
+
+document.getElementById('customNationImageInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const cn = activeCustomNation();
+  if (!cn) return;
+  const key = activeCustomSlotKey();
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      const slot = cn[key];
+      const capped = capImageForStorage(img, 600);
+      const finalize = (finalImg) => {
+        slot.src = capped;
+        fitSlotToZone(slot, finalImg, activeCustomZone());
+        saveCustomNations();
+        refreshCustomNationPanel();
+        drawWithArt();
+        checkpoint();
+      };
+      if (capped === img.src) {
+        finalize(img);
+      } else {
+        const cappedImg = new Image();
+        cappedImg.onload = () => finalize(cappedImg);
+        cappedImg.src = capped;
+      }
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  e.target.value = ''; // allow re-uploading the same filename later
+});
+
+document.getElementById('customNationLockToggle').addEventListener('click', () => {
+  const slot = activeCustomSlot();
+  if (!slot) return;
+  slot.locked = !slot.locked;
+  saveCustomNations();
+  refreshCustomNationPanel();
+  checkpoint();
+});
+
+document.getElementById('customNationRemoveImageBtn').addEventListener('click', () => {
+  const cn = activeCustomNation();
+  if (!cn) return;
+  const key = activeCustomSlotKey();
+  cn[key].src = null;
+  cn[key].fitted = false;
+  saveCustomNations();
+  refreshCustomNationPanel();
+  drawWithArt();
+  checkpoint();
+});
+
+document.getElementById('customNationDeleteBtn').addEventListener('click', () => {
+  const cn = activeCustomNation();
+  if (!cn) return;
+  if (!confirm(`Delete custom nation "${cn.name}"? This cannot be undone.`)) return;
+  deleteCustomNation(cn.id);
+  state.nation = 'neutral';
+  rebuildNationSelect();
+  document.getElementById('nation').value = 'neutral';
+  refreshCustomNationPanel();
+  drawWithArt();
+  checkpoint();
+});
+
 // Actual paint work: draws art before card template, clipped to art area only.
 // Renamed from the old drawWithArt — call sites now go through the
 // serialized wrapper below instead of this directly.
@@ -1145,7 +1749,7 @@ async function _paintWithArt() {
     ctx.beginPath();
     ctx.rect(ART_X, ART_Y, ART_W, ART_H);
     ctx.clip();
-    ctx.drawImage(artImg, artX, artY,
+    drawImageHQ(ctx, artImg, artX, artY,
       artImg.naturalWidth * artScale,
       artImg.naturalHeight * artScale);
     ctx.restore();
@@ -1154,6 +1758,7 @@ async function _paintWithArt() {
   } else {
     await draw();
   }
+  drawHandleOverlay();
 }
 
 // Serialized wrapper around _paintWithArt.
@@ -1285,6 +1890,20 @@ let panLastX = 0, panLastY = 0;
 function artDragAllowed() { return artImg && !state.artLocked; }
 
 canvas.addEventListener('mousedown', (e) => {
+  const cc = toCanvasCoords(e.clientX, e.clientY);
+  const hit = hitTestCustomSlot(cc.x, cc.y);
+  if (hit) {
+    const bbox = hit.bbox;
+    customDrag = {
+      mode: hit.mode,
+      lastX: e.clientX, lastY: e.clientY,
+      slot: activeCustomSlot(),
+      natW: bbox.natW, natH: bbox.natH,
+      left: bbox.x, top: bbox.y, right: bbox.x + bbox.w, bottom: bbox.y + bbox.h,
+    };
+    e.preventDefault();
+    return;
+  }
   if (artDragAllowed()) {
     artDragging = true;
     artDragLastX = e.clientX;
@@ -1299,6 +1918,16 @@ canvas.addEventListener('mousedown', (e) => {
   }
 });
 
+// Hover cursor hint for the custom-nation drag handles (idle only —
+// while a drag is in progress the browser's own cursor stays put).
+canvas.addEventListener('mousemove', (e) => {
+  if (artDragging || panDragging || customDrag) return;
+  const cc = toCanvasCoords(e.clientX, e.clientY);
+  const hit = hitTestCustomSlot(cc.x, cc.y);
+  const cursors = { tl: 'nwse-resize', br: 'nwse-resize', tr: 'nesw-resize', bl: 'nesw-resize', move: 'move' };
+  canvas.style.cursor = hit ? (cursors[hit.mode] || 'default') : '';
+});
+
 previewEl.addEventListener('mousedown', (e) => {
   if (e.target === canvas) return; // canvas handles its own case above
   if (canvasScale <= 1) return;
@@ -1310,7 +1939,16 @@ previewEl.addEventListener('mousedown', (e) => {
 });
 
 window.addEventListener('mousemove', (e) => {
-  if (artDragging) {
+  if (customDrag) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleRatio = 650 / rect.width;
+    const dx = (e.clientX - customDrag.lastX) * scaleRatio;
+    const dy = (e.clientY - customDrag.lastY) * scaleRatio;
+    customDrag.lastX = e.clientX;
+    customDrag.lastY = e.clientY;
+    applyCustomDragDelta(customDrag, dx, dy, e.shiftKey);
+    drawWithArt();
+  } else if (artDragging) {
     const rect = canvas.getBoundingClientRect();
     const scaleRatio = 650 / rect.width;
     artX += (e.clientX - artDragLastX) * scaleRatio;
@@ -1327,6 +1965,10 @@ window.addEventListener('mousemove', (e) => {
 });
 
 window.addEventListener('mouseup', () => {
+  if (customDrag) {
+    customDrag = null;
+    saveCustomNations();
+  }
   artDragging = false;
   panDragging = false;
   previewEl.classList.remove('dragging');
@@ -1377,6 +2019,23 @@ function touchDist(t1, t2) {
 }
 
 canvas.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 1) {
+    const t = e.touches[0];
+    const cc = toCanvasCoords(t.clientX, t.clientY);
+    const hit = hitTestCustomSlot(cc.x, cc.y);
+    if (hit) {
+      const bbox = hit.bbox;
+      customDrag = {
+        mode: hit.mode,
+        lastX: t.clientX, lastY: t.clientY,
+        slot: activeCustomSlot(),
+        natW: bbox.natW, natH: bbox.natH,
+        left: bbox.x, top: bbox.y, right: bbox.x + bbox.w, bottom: bbox.y + bbox.h,
+      };
+      e.preventDefault();
+      return;
+    }
+  }
   if (artDragAllowed()) {
     if (e.touches.length === 1) {
       touchDragging = true;
@@ -1412,6 +2071,19 @@ canvas.addEventListener('touchstart', (e) => {
 }, { passive: false });
 
 canvas.addEventListener('touchmove', (e) => {
+  if (customDrag && e.touches.length === 1) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleRatio = 650 / rect.width;
+    const t = e.touches[0];
+    const dx = (t.clientX - customDrag.lastX) * scaleRatio;
+    const dy = (t.clientY - customDrag.lastY) * scaleRatio;
+    customDrag.lastX = t.clientX;
+    customDrag.lastY = t.clientY;
+    applyCustomDragDelta(customDrag, dx, dy);
+    drawWithArt();
+    e.preventDefault();
+    return;
+  }
   if (artDragAllowed()) {
     if (e.touches.length === 1 && touchDragging) {
       const rect = canvas.getBoundingClientRect();
@@ -1453,6 +2125,10 @@ canvas.addEventListener('touchmove', (e) => {
 
 canvas.addEventListener('touchend', (e) => {
   if (e.touches.length === 0) {
+    if (customDrag) {
+      customDrag = null;
+      saveCustomNations();
+    }
     touchDragging = false;
     panDragging = false;
     checkpoint(); // no-op if nothing actually changed (e.g. a plain tap)
@@ -1522,7 +2198,16 @@ function syncUIFromState() {
   updateCardTypeVisibility();
   updateRarityVariantVisibility();
 
+  rebuildNationSelect();
   document.getElementById('nation').value = state.nation;
+  if (document.getElementById('nation').value !== state.nation) {
+    // A snapshot (undo/draft-restore) pointed at a custom nation that no
+    // longer exists (deleted since) — fall back rather than show a
+    // silently-wrong selection.
+    state.nation = 'neutral';
+    document.getElementById('nation').value = 'neutral';
+  }
+  refreshCustomNationPanel();
   document.getElementById('cardName').value = state.name;
   document.getElementById('kreditCost').value = state.kreditCost;
   document.getElementById('opCost').value = state.opCost;
@@ -1536,12 +2221,33 @@ function syncUIFromState() {
   document.getElementById('orderNameFontSize').value = state.orderNameFontSize;
   document.getElementById('keywordsFontSize').value = state.keywordsFontSize;
   document.getElementById('textFontSize').value = state.textFontSize;
+  updateFineTuneOpenState();
 
   // Apply shared zone limits for the current card type (also clamps values).
   updateOffsetSliderLimits();
 
   artLockBtn.textContent = state.artLocked ? 'Unlock Art' : 'Lock Art';
   artLockBtn.classList.toggle('active', state.artLocked);
+}
+
+// A "Fine-tune" block opens itself automatically the moment any value
+// inside it stops matching the default — undo/redo, draft-restore, or
+// simply having tweaked a slider earlier should never leave a customized
+// card's own settings hidden behind a collapsed triangle.
+function updateFineTuneOpenState() {
+  const isUnit = state.cardType === 'unit';
+  const nameCustom = isUnit
+    ? state.nameFontSize !== DEFAULT_STATE.nameFontSize
+    : (state.orderNameFontSize !== DEFAULT_STATE.orderNameFontSize || state.nameOffsetY !== DEFAULT_STATE.nameOffsetY);
+  document.getElementById('nameFineTune').open = nameCustom;
+
+  const keywordsCustom = state.keywordsFontSize !== DEFAULT_STATE.keywordsFontSize ||
+    state.keywordsOffsetY !== DEFAULT_STATE.keywordsOffsetY;
+  document.getElementById('keywordsFineTune').open = keywordsCustom;
+
+  const textCustom = state.textFontSize !== DEFAULT_STATE.textFontSize ||
+    state.textOffsetY !== DEFAULT_STATE.textOffsetY;
+  document.getElementById('textFineTune').open = textCustom;
 }
 
 // ── Undo / redo ─────────────────────────────────────────────────────────
@@ -1556,23 +2262,29 @@ let lastSnapshot = null;
 let checkpointTimer = null;
 
 function snapshotState() {
-  // artSrc is included (not just artX/Y/Scale) so undo/redo can restore
-  // the loaded/removed image itself, not just its position. Each snapshot
-  // duplicates the art's base64 data URL string, which does cost memory
-  // across up to 50 history steps for a large image — but it's the same
-  // trade-off persistDraft() already accepts for the single autosave
-  // draft, and in practice a KARDS card art image is a few hundred KB to
-  // a couple MB, so 50 steps stays well within what a browser tab handles.
-  return JSON.stringify({ ...state, artX, artY, artScale, artSrc: artImg ? artImg.src : null });
+  // customNations is included too — dragging/resizing/uploading/renaming/
+  // creating/deleting a custom nation is just as undoable as any other
+  // card edit now. Images are downscaled to a modest cap before ever
+  // reaching a slot's .src (see the upload handler), so this stays cheap
+  // even across 50 history steps.
+  return JSON.stringify({ ...state, artX, artY, artScale, artSrc: artImg ? artImg.src : null, customNations });
 }
 
 function applySnapshotJSON(json) {
   const snap = JSON.parse(json);
-  const { artX: sx, artY: sy, artScale: sScale, artSrc, ...rest } = snap;
+  const { artX: sx, artY: sy, artScale: sScale, artSrc, customNations: snapCustomNations, ...rest } = snap;
   Object.assign(state, rest);
   if (typeof sx === 'number') artX = sx;
   if (typeof sy === 'number') artY = sy;
   if (typeof sScale === 'number') artScale = sScale;
+
+  // Restore the custom-nations library to this point in history too, and
+  // persist it — every syncUIFromState() call below rebuilds the <select>
+  // and refreshes the panel from the (now-restored) list.
+  if (snapCustomNations) {
+    customNations = snapCustomNations;
+    saveCustomNations();
+  }
 
   const currentSrc = artImg ? artImg.src : null;
   // artSrc unchanged (same string, or both null/undefined for "no art"):
@@ -1618,11 +2330,13 @@ function updateUndoRedoButtons() {
 
 function persistDraft() {
   try {
-    // The single autosave draft (unlike the undo-history stack, which
-    // deliberately excludes art to avoid duplicating a multi-MB image
-    // into 50 snapshots) DOES include the art, since there's only ever
-    // one draft saved at a time.
-    const draftObj = { ...JSON.parse(lastSnapshot), artSrc: artImg ? artImg.src : null };
+    // The autosave draft mirrors the latest undo snapshot, but strips
+    // customNations back out — that library already persists to its own
+    // localStorage key (see saveCustomNations()), so duplicating it into
+    // every draft save here would just burn quota twice over for nothing.
+    const parsed = JSON.parse(lastSnapshot);
+    delete parsed.customNations;
+    const draftObj = { ...parsed, artSrc: artImg ? artImg.src : null };
     localStorage.setItem('kards-draft', JSON.stringify(draftObj));
   } catch (err) {
     // Most likely a quota error from a large art image — the draft
