@@ -23,23 +23,6 @@ Alternatively, download and open `index.html` locally. No installation or setup 
 
 ---
 
-## Card Creator (index.html)
-
-A fully **self-contained** card creator that runs directly in any browser. All card templates, nation headers, rarity icons, and fonts are embedded directly into the file as **Base64 data**, so the single `.html` file is all you need.
-
-**Features:**
-- Unit cards (Infantry, Tank, Artillery, Fighter, Bomber) with all nations
-- Order & Countermeasure cards
-- Custom card name, stats, keywords, and card text (with **bold** markdown support)
-- Rarity icons (Standard, Limited, Special, Elite)
-- Art image upload — drag to reposition, scroll/pinch to scale, lock/unlock, clipped to the art area
-- Scroll or pinch to zoom the full card preview (up to 5×)
-- Undo / Redo (buttons + Ctrl+Z / Ctrl+Y)
-- Dark / Light theme
-- Export as PNG
-
----
-
 ## File Structure
 
 ```
