@@ -14,7 +14,7 @@ Alternatively, download and open `index.html` locally. No installation or setup 
 
 ---
 
-[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github)](https://github.com/sponsors/Babaika328)
+<a href="https://github.com/sponsors/Babaika328"><img src="https://img.shields.io/badge/Sponsor%20on%20GitHub-%E2%9D%A4-ea4aaa?style=for-the-badge&logo=github&logoColor=white" alt="Sponsor on GitHub" height="30"></a>
 
 ## Preview
 
