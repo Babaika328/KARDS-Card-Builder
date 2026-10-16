@@ -189,13 +189,9 @@
         <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
       </svg>
     </a>
-    <a id="coffeeLink" href="https://buymeacoffee.com/verykraken" target="_blank" rel="noopener noreferrer" title="Buy me a coffee" aria-label="Buy me a coffee">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
-        <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
-        <line x1="6" y1="1" x2="6" y2="4"/>
-        <line x1="10" y1="1" x2="10" y2="4"/>
-        <line x1="14" y1="1" x2="14" y2="4"/>
+    <a id="coffeeLink" href="https://github.com/sponsors/Babaika328" target="_blank" rel="noopener noreferrer" title="Sponsor on GitHub" aria-label="Sponsor on GitHub">
+      <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="m8 14.25.345.666a.75.75 0 0 1-.69 0l-.008-.004-.018-.01a7.152 7.152 0 0 1-.31-.17 22.055 22.055 0 0 1-3.434-2.414C2.045 10.731 0 8.35 0 5.5 0 2.836 2.086 1 4.25 1 5.797 1 7.153 1.802 8 3.02 8.847 1.802 10.203 1 11.75 1 13.914 1 16 2.836 16 5.5c0 2.85-2.045 5.231-3.885 6.818a22.066 22.066 0 0 1-3.744 2.584l-.018.01-.006.003h-.002ZM4.25 2.5c-1.336 0-2.75 1.164-2.75 3 0 2.15 1.58 4.144 3.365 5.682A20.58 20.58 0 0 0 8 13.393a20.58 20.58 0 0 0 3.135-2.211C12.92 9.644 14.5 7.65 14.5 5.5c0-1.836-1.414-3-2.75-3-1.373 0-2.609.986-3.029 2.456a.749.749 0 0 1-1.442 0C6.859 3.486 5.623 2.5 4.25 2.5Z"/>
       </svg>
     </a>
     <button id="themeToggle">Dark</button>
@@ -246,6 +242,16 @@
       <label><span>Name</span>
         <input type="text" id="customNationNameInput" placeholder="Custom nation name...">
       </label>
+      <div id="customNationNameColorRow" style="display:flex; align-items:flex-end; gap:6px; margin-bottom:6px;">
+        <label style="flex:1;"><span>Unit name color</span>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <input type="color" id="customNationNameColorInput" value="#b9beaa" style="flex:0 0 34px; width:34px; height:28px; padding:2px; cursor:pointer;" title="Open color picker">
+            <input type="text" id="customNationNameColorText" value="#b9beaa" spellcheck="false" autocomplete="off" placeholder="#b9beaa · rgb(185,190,170) · hsl(...)" style="flex:1; min-width:0; font-family:monospace;">
+            <button type="button" class="toggle-btn" id="customNationEyedropper" style="display:none; flex:0 0 auto; padding:5px 8px;" title="Pick a color from the screen">&#9998;</button>
+          </div>
+        </label>
+        <button type="button" class="toggle-btn" id="customNationNameColorReset" style="flex:0 0 auto; padding:6px 10px;" title="Reset to default color">Default</button>
+      </div>
       <div class="hint" id="customNationSlotLabel" style="margin-bottom:6px;"></div>
       <label><span>Upload image</span>
         <input type="file" id="customNationImageInput" accept="image/*" style="font-size:11px; padding:4px 0;">
@@ -576,8 +582,9 @@ function capImageForStorage(img, maxDim = 600) {
 //   • orderBadge — used for Order/Countermeasure cards (small badge, top-right)
 // Persisted separately from card state/undo-history — these are reusable
 // assets across many cards, not per-card data, so Reset/Undo never touch them.
-const CUSTOM_NATION_MAX = 3;
+const CUSTOM_NATION_MAX = 5;
 const CUSTOM_NATIONS_KEY = 'kards-custom-nations';
+const DEFAULT_NAME_COLOR = '#b9beaa'; // same fallback the built-in nations use
 
 // Zones (logical 0-650 canvas space) each slot is clipped to.
 const HEADER_ZONE = { x: 195, y: 39, w: 332, h: 66 };   // unit header banner
@@ -671,6 +678,7 @@ function createCustomNation() {
     unitGround: emptySlot(),
     unitAir: emptySlot(),
     orderBadge: emptySlot(),
+    nameColor: DEFAULT_NAME_COLOR,
   };
   customNations.push(cn);
   saveCustomNations();
@@ -722,6 +730,11 @@ function refreshCustomNationPanel() {
     label += ' (using Ground image for now)';
   }
   document.getElementById('customNationSlotLabel').textContent = label;
+  const colorRow = document.getElementById('customNationNameColorRow');
+  colorRow.style.display = state.cardType === 'unit' ? 'flex' : 'none';
+  document.getElementById('customNationNameColorInput').value = cn.nameColor || DEFAULT_NAME_COLOR;
+  const _ct = document.getElementById('customNationNameColorText');
+  if (document.activeElement !== _ct) _ct.value = cn.nameColor || DEFAULT_NAME_COLOR;
   const lockBtn = document.getElementById('customNationLockToggle');
   lockBtn.textContent = slot.locked ? 'Unlock' : 'Lock';
   lockBtn.classList.toggle('active', slot.locked);
@@ -1061,7 +1074,8 @@ async function draw(skipClear = false) {
       france: '#bbc0ab', germany: '#b9beaa', finland: '#35373d',
       britain: '#babfaa', ussr: '#bbc1ab', italy: '#bbc0ab', neutral: '#bcc0a9'
     };
-    const nameColor = nameColors[state.nation] || '#b9beaa';
+    const _cn = activeCustomNation();
+    const nameColor = _cn ? (_cn.nameColor || DEFAULT_NAME_COLOR) : (nameColors[state.nation] || '#b9beaa');
     const nameFontSize = state.nameFontSize || 47;
     // Header text area: starts after the cost box (x=205), ends just
     // before the nation emblem icon baked into the header art. Measured
@@ -1338,7 +1352,7 @@ document.getElementById('nation').addEventListener('change', (e) => {
 });
 document.getElementById('addCustomNationBtn').addEventListener('click', () => {
   const cn = createCustomNation();
-  if (!cn) return; // at the 3-nation cap, createCustomNation() already alerted
+  if (!cn) return; // at the nation cap, createCustomNation() already alerted
   rebuildNationSelect();
   state.nation = 'custom:' + cn.id;
   document.getElementById('nation').value = state.nation;
@@ -1668,6 +1682,61 @@ document.getElementById('customNationNameInput').addEventListener('blur', () => 
   document.getElementById('nation').value = state.nation;
   document.getElementById('customNationNameInput').value = cn.name;
   checkpoint();
+});
+
+// Parse any CSS color (#rgb, #rrggbb, bare hex, rgb(), hsl(), names) → '#rrggbb' or null.
+const _colorCtx = document.createElement('canvas').getContext('2d');
+function parseAnyColor(str) {
+  str = (str || '').trim();
+  if (!str) return null;
+  if (/^[0-9a-f]{3}$|^[0-9a-f]{6}$|^[0-9a-f]{8}$/i.test(str)) str = '#' + str;
+  // rgb with bare commas/spaces: "185 190 170" or "185,190,170"
+  const bare = str.match(/^(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})$/);
+  if (bare) str = `rgb(${bare[1]},${bare[2]},${bare[3]})`;
+  if (!CSS.supports('color', str)) return null;
+  _colorCtx.fillStyle = '#000000';
+  _colorCtx.fillStyle = str;
+  let out = _colorCtx.fillStyle;
+  if (out.startsWith('#')) return out.toLowerCase();
+  const m = out.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (!m) return null;
+  return '#' + [m[1], m[2], m[3]].map(v => (+v).toString(16).padStart(2, '0')).join('');
+}
+function setNameColor(hex, { checkpointNow = false, syncText = true } = {}) {
+  const cn = activeCustomNation();
+  if (!cn) return;
+  cn.nameColor = hex;
+  document.getElementById('customNationNameColorInput').value = hex;
+  if (syncText) document.getElementById('customNationNameColorText').value = hex;
+  saveCustomNations();
+  drawWithArt();
+  checkpointNow ? checkpoint() : scheduleCheckpoint();
+}
+document.getElementById('customNationNameColorInput').addEventListener('input', (e) => setNameColor(e.target.value));
+const _nameColorText = document.getElementById('customNationNameColorText');
+_nameColorText.addEventListener('input', () => {
+  const hex = parseAnyColor(_nameColorText.value);
+  _nameColorText.style.outline = hex || !_nameColorText.value.trim() ? '' : '1px solid #c08080';
+  if (hex) setNameColor(hex, { syncText: false }); // don't rewrite what the user is typing
+});
+_nameColorText.addEventListener('blur', () => {
+  const cn = activeCustomNation();
+  _nameColorText.style.outline = '';
+  if (cn) _nameColorText.value = cn.nameColor || DEFAULT_NAME_COLOR; // snap back to the normalized value
+});
+_nameColorText.addEventListener('keydown', (e) => { if (e.key === 'Enter') _nameColorText.blur(); });
+if ('EyeDropper' in window) {
+  const eyeBtn = document.getElementById('customNationEyedropper');
+  eyeBtn.style.display = '';
+  eyeBtn.addEventListener('click', async () => {
+    try {
+      const res = await new EyeDropper().open();
+      setNameColor(res.sRGBHex.toLowerCase(), { checkpointNow: true });
+    } catch (_) { /* cancelled */ }
+  });
+}
+document.getElementById('customNationNameColorReset').addEventListener('click', () => {
+  setNameColor(DEFAULT_NAME_COLOR, { checkpointNow: true });
 });
 
 document.getElementById('customNationImageInput').addEventListener('change', (e) => {
