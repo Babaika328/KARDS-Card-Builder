@@ -392,7 +392,7 @@
         <button type="button" class="toggle-btn" id="undoBtn" style="flex:1;" disabled>↶ Undo</button>
         <button type="button" class="toggle-btn" id="redoBtn" style="flex:1;" disabled>↷ Redo</button>
       </div>
-      <button class="primary" id="saveBtn" style="flex:0 0 auto;">Save PNG</button>
+      <div class="row" style="gap:8px;"><button class="primary" id="saveBtn">Save PNG</button><button class="primary" id="openBtn" title="Open a PNG saved from this site and keep editing it">Open PNG</button><input type="file" id="openCardInput" accept="image/png,.png" hidden></div>
       <button class="primary danger" id="resetBtn" style="flex:0 0 auto;">Reset</button>
     </div>
 
@@ -1562,7 +1562,263 @@ function getOpaqueBounds() {
   return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
 }
 
-document.getElementById('saveBtn').addEventListener('click', () => {
+// ── Save / Open a card inside the PNG itself ─────────────────────────
+// "Save PNG" now also tucks the card's full editable state into a private
+// PNG chunk (kdSt). The picture looks identical everywhere; "Open PNG"
+// (or dropping the file on the page) reads that chunk back and restores
+// the card — text, art position/zoom, custom nation and all.
+const PNG_SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10];
+const CARD_CHUNK = 'kdSt';            // lowercase 1st/2nd/4th letter = ancillary, private, safe-to-copy
+const CARD_FORMAT_VERSION = 1;
+const CARD_FILE_MAX = 60 * 1024 * 1024;
+
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function hasPngSignature(b) {
+  return b.length > 8 && PNG_SIGNATURE.every((v, i) => b[i] === v);
+}
+
+// Walks the PNG chunk list; calls fn(type, dataStart, dataLen, chunkStart).
+function eachPngChunk(png, fn) {
+  const dv = new DataView(png.buffer, png.byteOffset, png.byteLength);
+  let pos = 8;
+  while (pos + 12 <= png.length) {
+    const len = dv.getUint32(pos);
+    if (pos + 12 + len > png.length) break;
+    const type = String.fromCharCode(png[pos + 4], png[pos + 5], png[pos + 6], png[pos + 7]);
+    if (fn(type, pos + 8, len, pos) === false) return;
+    pos += 12 + len;
+  }
+}
+
+function insertPngChunk(png, type, data) {
+  if (!hasPngSignature(png)) throw new Error('not a PNG');
+  let iendPos = -1;
+  eachPngChunk(png, (t, ds, len, cs) => { if (t === 'IEND') { iendPos = cs; return false; } });
+  if (iendPos < 0) throw new Error('PNG has no IEND');
+  const chunk = new Uint8Array(12 + data.length);
+  const dv = new DataView(chunk.buffer);
+  dv.setUint32(0, data.length);
+  for (let i = 0; i < 4; i++) chunk[4 + i] = type.charCodeAt(i);
+  chunk.set(data, 8);
+  dv.setUint32(8 + data.length, crc32(chunk.subarray(4, 8 + data.length)));
+  const out = new Uint8Array(png.length + chunk.length);
+  out.set(png.subarray(0, iendPos), 0);
+  out.set(chunk, iendPos);
+  out.set(png.subarray(iendPos), iendPos + chunk.length);
+  return out;
+}
+
+function readPngChunk(png, type) {
+  let found = null;
+  eachPngChunk(png, (t, ds, len) => {
+    if (t === type) { found = png.slice(ds, ds + len); return false; }
+  });
+  return found;
+}
+
+async function pipeBytes(bytes, transform) {
+  const res = new Response(new Blob([bytes]).stream().pipeThrough(transform));
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+// payload layout: [formatVersion][flags: 1 = deflate][...JSON utf-8 bytes]
+async function packCardData(jsonString) {
+  const raw = new TextEncoder().encode(jsonString);
+  let flags = 0, body = raw;
+  try {
+    if (typeof CompressionStream === 'function' && typeof Blob.prototype.stream === 'function') {
+      body = await pipeBytes(raw, new CompressionStream('deflate'));
+      flags = 1;
+    }
+  } catch (err) { body = raw; flags = 0; }
+  const out = new Uint8Array(2 + body.length);
+  out[0] = CARD_FORMAT_VERSION;
+  out[1] = flags;
+  out.set(body, 2);
+  return out;
+}
+
+async function unpackCardData(payload) {
+  if (payload.length < 3) throw new Error('This file\u2019s card data is damaged.');
+  if (payload[0] > CARD_FORMAT_VERSION) {
+    throw new Error('This card was saved by a newer version of the editor. Refresh the page and try again.');
+  }
+  let body = payload.subarray(2);
+  if (payload[1] & 1) {
+    if (typeof DecompressionStream !== 'function') {
+      throw new Error('This browser is too old to open saved cards. Please update it.');
+    }
+    try {
+      body = await pipeBytes(body, new DecompressionStream('deflate'));
+    } catch (err) {
+      throw new Error('This file\u2019s card data is damaged.');
+    }
+  }
+  return new TextDecoder().decode(body);
+}
+
+// ── Untrusted-input cleanup ──────────────────────────────────────────
+// Contest entries come from other people, so nothing in the file is
+// trusted: only known fields, right types, clamped numbers, image data
+// URLs only. Returns a snapshot JSON string in snapshotState()'s shape.
+const CARD_IMG_RE = /^data:image\/(png|jpeg|jpg|webp|gif|svg\+xml);base64,/i;
+const cardNum = (v, lo, hi, d) => (typeof v === 'number' && isFinite(v)) ? Math.min(hi, Math.max(lo, v)) : d;
+const cardImg = (v) => (typeof v === 'string' && v.length < 25e6 && CARD_IMG_RE.test(v)) ? v : null;
+
+function sanitizeImportedCard(raw, currentNations) {
+  if (!raw || typeof raw !== 'object') throw new Error('This file\u2019s card data is damaged.');
+  const src = (raw.state && typeof raw.state === 'object') ? raw.state : {};
+  const s = {};
+  for (const key of Object.keys(DEFAULT_STATE)) {
+    const def = DEFAULT_STATE[key];
+    const v = Object.prototype.hasOwnProperty.call(src, key) ? src[key] : undefined;
+    if (typeof def === 'string') s[key] = typeof v === 'string' ? v.slice(0, 2000) : def;
+    else if (typeof def === 'number') s[key] = cardNum(v, -2000, 2000, def);
+    else if (typeof def === 'boolean') s[key] = typeof v === 'boolean' ? v : def;
+    else s[key] = def;
+  }
+  const pick = (v, list, d) => list.includes(v) ? v : d;
+  s.cardType = pick(s.cardType, ['unit', 'order', 'countermeasure'], DEFAULT_STATE.cardType);
+  s.unitType = pick(s.unitType, ['infantry', 'tank', 'artillery', 'fighter', 'bomber'], DEFAULT_STATE.unitType);
+  s.rarity = pick(s.rarity, ['none', 'standard', 'limited', 'special', 'elite'], DEFAULT_STATE.rarity);
+  s.rarityVariant = s.rarityVariant === 2 ? 2 : 1;
+  s.kreditCost = Math.round(cardNum(s.kreditCost, 0, 99, 0));
+  s.opCost = Math.round(cardNum(s.opCost, 0, 9, 0));
+  s.attack = Math.round(cardNum(s.attack, 0, 99, 0));
+  s.defence = Math.round(cardNum(s.defence, 0, 99, 0));
+
+  const slot = (o) => {
+    o = (o && typeof o === 'object') ? o : {};
+    return {
+      src: cardImg(o.src),
+      x: cardNum(o.x, -5000, 5000, 0), y: cardNum(o.y, -5000, 5000, 0),
+      scaleX: cardNum(o.scaleX, 0.001, 100, 1), scaleY: cardNum(o.scaleY, 0.001, 100, 1),
+      locked: o.locked === true, fitted: o.fitted === true,
+    };
+  };
+  const imported = (Array.isArray(raw.customNations) ? raw.customNations : [])
+    .slice(0, CUSTOM_NATION_MAX)
+    .filter(o => o && typeof o === 'object' && typeof o.id === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(o.id))
+    .map(o => ({
+      id: o.id,
+      name: typeof o.name === 'string' ? o.name.slice(0, 60) : 'Custom Nation',
+      unitGround: slot(o.unitGround), unitAir: slot(o.unitAir), orderBadge: slot(o.orderBadge),
+      nameColor: (typeof o.nameColor === 'string' && /^#[0-9a-f]{3,8}$/i.test(o.nameColor)) ? o.nameColor : DEFAULT_NAME_COLOR,
+    }));
+
+  // Merge the card's custom nation into the user's own library (same id =
+  // replace, new id = add if there's room). Undo restores the old library.
+  const merged = currentNations.slice();
+  let nationNote = '';
+  if (typeof s.nation === 'string' && s.nation.startsWith('custom:')) {
+    const id = s.nation.slice(7);
+    const imp = imported.find(n => n.id === id);
+    const idx = merged.findIndex(c => c.id === id);
+    if (imp && idx >= 0) merged[idx] = imp;
+    else if (imp && merged.length < CUSTOM_NATION_MAX) merged.push(imp);
+    else {
+      s.nation = 'neutral';
+      nationNote = imp ? ' Its custom nation wasn\u2019t added because you already have the maximum number of custom nations.'
+                       : ' Its custom nation was missing from the file.';
+    }
+  } else if (!Object.prototype.hasOwnProperty.call(ASSETS, 'nation_' + s.nation)) {
+    s.nation = 'neutral';
+  }
+
+  const snap = {
+    ...s,
+    artX: cardNum(raw.artX, -5000, 5000, ART_X),
+    artY: cardNum(raw.artY, -5000, 5000, ART_Y),
+    artScale: cardNum(raw.artScale, 0.01, 50, 1),
+    artSrc: cardImg(raw.artSrc),
+    customNations: merged,
+  };
+  return { json: JSON.stringify(snap), nationNote };
+}
+
+function showToast(msg, isError) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.setAttribute('role', 'status');
+    t.style.cssText = 'position:fixed; left:50%; top:64px; transform:translateX(-50%); z-index:9999;' +
+      'max-width:90vw; padding:10px 14px; border-radius:4px; font-size:14px; line-height:1.35;' +
+      'background:var(--panel); color:var(--text); border:1px solid var(--border);' +
+      'box-shadow:0 2px 12px rgba(0,0,0,0.35); font-family:\'FranklinMed\', sans-serif;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.borderColor = isError ? '#c08080' : 'var(--border)';
+  t.style.display = 'block';
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(() => { t.style.display = 'none'; }, isError ? 7000 : 3500);
+}
+
+// Art is stored in the editor as a lossless PNG data URL, which is huge
+// for photos. For the embedded copy only, re-encode fully opaque art as
+// high-quality JPEG (keeps PNG when there is any transparency, or when
+// JPEG wouldn't actually be smaller).
+function compactArtSrc(img) {
+  try {
+    const src = img.src;
+    if (!src || /^data:image\/jpe?g/i.test(src)) return src;
+    const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    if (!w || !h) return src;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const cx = c.getContext('2d', { willReadFrequently: true });
+    cx.drawImage(img, 0, 0, w, h);
+    const px = cx.getImageData(0, 0, w, h).data;
+    for (let i = 3; i < px.length; i += 4) if (px[i] < 255) return src; // has transparency
+    const jpeg = c.toDataURL('image/jpeg', 0.9);
+    return jpeg.length < src.length ? jpeg : src;
+  } catch (err) {
+    return img.src;
+  }
+}
+
+// What gets embedded: the card state, art, and only the custom nation
+// this card actually uses (not the user's whole library).
+function exportCardJSON() {
+  const cn = activeCustomNation();
+  return JSON.stringify({
+    v: CARD_FORMAT_VERSION,
+    state: { ...state },
+    artX, artY, artScale,
+    artSrc: artImg ? compactArtSrc(artImg) : null,
+    customNations: cn ? [cn] : [],
+  });
+}
+
+function downloadHref(href, filename, revokeAfter) {
+  const a = document.createElement('a');
+  a.download = filename;
+  a.href = href;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    a.remove();
+    if (revokeAfter) URL.revokeObjectURL(href);
+  }, 30000);
+}
+
+document.getElementById('saveBtn').addEventListener('click', async () => {
   const bounds = getOpaqueBounds();
   const cropCanvas = document.createElement('canvas');
   cropCanvas.width = bounds.w;
@@ -1570,10 +1826,80 @@ document.getElementById('saveBtn').addEventListener('click', () => {
   const cropCtx = cropCanvas.getContext('2d');
   cropCtx.drawImage(canvas, bounds.x, bounds.y, bounds.w, bounds.h, 0, 0, bounds.w, bounds.h);
 
-  const a = document.createElement('a');
-  a.download = (state.name || 'card').replace(/\s+/g, '-').toLowerCase() + '.png';
-  a.href = cropCanvas.toDataURL('image/png');
-  a.click();
+  const filename = (state.name || 'card').replace(/\s+/g, '-').toLowerCase() + '.png';
+
+  // Any failure while embedding falls back to the plain PNG, exactly
+  // like before — saving the picture must never break.
+  try {
+    const blob = await new Promise((res) => cropCanvas.toBlob(res, 'image/png'));
+    if (!blob) throw new Error('toBlob failed');
+    let bytes = new Uint8Array(await blob.arrayBuffer());
+    try {
+      const payload = await packCardData(exportCardJSON());
+      bytes = insertPngChunk(bytes, CARD_CHUNK, payload);
+    } catch (err) {
+      console.warn('Could not embed card data, saving plain PNG:', err);
+    }
+    const url = URL.createObjectURL(new Blob([bytes], { type: 'image/png' }));
+    downloadHref(url, filename, true);
+  } catch (err) {
+    console.warn('Blob export failed, using data URL:', err);
+    downloadHref(cropCanvas.toDataURL('image/png'), filename, false);
+  }
+});
+
+async function openCardFromFile(file) {
+  if (!file) return;
+  try {
+    if (file.size > CARD_FILE_MAX) throw new Error('That file is too large.');
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (!hasPngSignature(bytes)) throw new Error('That isn\u2019t a PNG file.');
+    const chunk = readPngChunk(bytes, CARD_CHUNK);
+    if (!chunk) {
+      throw new Error('No card data in this PNG. Only PNGs saved with this site\u2019s Save PNG button can be reopened (screenshots and re-saved copies lose it).');
+    }
+    const text = await unpackCardData(chunk);
+    let parsed;
+    try { parsed = JSON.parse(text); } catch (e) { throw new Error('This file\u2019s card data is damaged.'); }
+    const { json, nationNote } = sanitizeImportedCard(parsed, customNations);
+
+    // Flush any pending edit, then record the load as one undo step.
+    clearTimeout(checkpointTimer);
+    checkpoint();
+    historyPast.push(lastSnapshot);
+    if (historyPast.length > 50) historyPast.shift();
+    historyFuture = [];
+    applySnapshotJSON(json);
+    lastSnapshot = json;
+    updateUndoRedoButtons();
+    persistDraft();
+    showToast('Card loaded. You can undo this with Undo.' + nationNote, !!nationNote);
+  } catch (err) {
+    console.warn('Open PNG failed:', err);
+    showToast(err && err.message ? err.message : 'Could not open that file.', true);
+  }
+}
+
+document.getElementById('openBtn').addEventListener('click', () => {
+  document.getElementById('openCardInput').click();
+});
+document.getElementById('openCardInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  e.target.value = ''; // allow picking the same file again
+  openCardFromFile(file);
+});
+
+// Desktop: drop a saved card PNG anywhere on the page. Drops onto the
+// existing file inputs (art / nation image) are left alone.
+window.addEventListener('dragover', (e) => {
+  if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) e.preventDefault();
+});
+window.addEventListener('drop', (e) => {
+  const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!file) return;
+  if (e.target && e.target.closest && e.target.closest('input[type=file]')) return;
+  e.preventDefault();
+  openCardFromFile(file);
 });
 
 function resetAll() {
